@@ -46,6 +46,29 @@ Both work through the same `IEncoder` API. The multiplexer is **optional**.
 - `UngulaHal` — `i2c::I2cMaster`, `gpio` for the optional DIR pin, `multiplexer::IMultiplexer` for the optional channel select.
 - `EmblogX` — runtime diagnostics. Logging is off by default.
 
+### Include reference
+
+- Core encoder API only:
+
+```cpp
+#include <ungula/encoder.h>
+```
+
+- AS5600 direct-connect example:
+
+```cpp
+#include <ungula/hal/i2c/i2c_master.h>
+#include <ungula/encoder/drivers/as5600.h>
+```
+
+- AS5600 + TCA9548A multiplexer example:
+
+```cpp
+#include <ungula/hal/i2c/i2c_master.h>
+#include <ungula/hal/multiplexer/drivers/multiplexer_tca9548.h>
+#include <ungula/encoder/drivers/as5600.h>
+```
+
 ## Architecture
 
 ```text
@@ -149,7 +172,11 @@ the module tag `encoder`. Enable per-instance, not globally — debugging a
 flaky encoder doesn't have to flood the log with the others.
 
 ```cpp
-vertical.enableLogging();   // now everything from this instance shows up
+#include <ungula/encoder/drivers/as5600.h>
+
+void enable_debug_for_one_encoder(ungula::encoder::drivers::AS5600& vertical) {
+    vertical.enableLogging();   // now everything from this instance shows up
+}
 ```
 
 Errors flow through `log_error_m`, raw-angle traces through
@@ -195,7 +222,7 @@ Thanks to Claude and ChatGPT for helping on generating this documentation.
 
 ## License
 
-MIT License — see [LICENSE](license.txt) file.
+MIT License — see [LICENSE](LICENSE) file.
 
 ---
 

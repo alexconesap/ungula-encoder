@@ -23,11 +23,11 @@ namespace ungula::encoder {
         if (buf == nullptr || bufSize == 0) {
             return 0;
         }
-        const int n = snprintf(buf, bufSize, "[%s %s @0x%02X:%u]",
+        const int num = snprintf(buf, bufSize, "[%s %s @0x%02X:%u]",
                                model_ != nullptr ? model_ : "?",
                                name_ != nullptr ? name_ : "?", address_,
                                multiplexerChannel_);
-        return (n < 0) ? 0 : static_cast<size_t>(n);
+        return (num < 0) ? 0 : static_cast<size_t>(num);
     }
 
 #define UNGULA_ENC_DEFINE_LOG_HELPER(NAME, EMIT)                            \
