@@ -17,28 +17,50 @@
 /// up with one include.
 ///
 /// Tests rely on this fake to detect interface drift: every pure-virtual
-/// `IEncoder` method must be implemented here, otherwise the file
-/// fails to compile and the contract test fires immediately.
+/// `IEncoder` method must be implemented here, otherwise the file fails
+/// to compile and the contract test fires immediately.
+///
+/// This fake is **transport-agnostic** by design — it knows nothing
+/// about I2C, multiplexers, SPI, PWM. For tests that need to observe
+/// the multiplexer channel-select pattern, see `i2c_encoder_fake.h`.
 
 namespace ungula::encoder::drivers {
+
+    constexpr int FAKE_DEFAULT_RESOLUTION = 4096;
 
     class EncoderFake final : public IEncoder {
         public:
             EncoderFake(const char* name = "fake",
-                        ungula::hal::multiplexer::IMultiplexer* multiplexer = nullptr)
-                    : IEncoder("FAKE", name, multiplexer) {}
+                        int resolution = FAKE_DEFAULT_RESOLUTION)
+                    : IEncoder("FAKE", name, resolution) {}
+
+            // ---- Capability flags (default: not supported) -----------------
+            //
+            // The fake exposes both magnet and watchdog so the contract
+            // test can exercise every method without ambiguity. A test
+            // that wants to observe the "no magnet sensing" path uses a
+            // different fake (or a derived class that keeps the defaults).
+
+            bool hasMagnetSensing() const override {
+                return true;
+            }
+            bool hasWatchDog() const override {
+                return true;
+            }
 
             // ---- Driver contract ----
 
-            bool begin(uint8_t multiplexerChannel, uint8_t directionPin) override {
+            bool begin() override {
                 ++beginCallCount_;
-                multiplexerChannel_ = multiplexerChannel;
-                lastDirectionPin_ = directionPin;
                 isInitialized_ = true;
                 if (!beginResult_) {
                     setInitializationStatus(Error::BeginFailed);
+                    return false;
                 }
-                return beginResult_;
+                // Apply whatever direction was set before begin() — same
+                // contract every real driver follows.
+                applyDirection(direction_);
+                return true;
             }
 
             bool isFunctional() override {
@@ -53,19 +75,15 @@ namespace ungula::encoder::drivers {
 
             float readPosition() override {
                 ++readPositionCallCount_;
-                if (!selectMultiplexerChannel()) {
+                if (!isInitialized_) {
+                    setStatus(Error::NotInitialized);
                     return NAN;
                 }
                 return scriptedPosition_;
             }
 
-            float angleFromPosition(int position,
-                                    float calibration_steps_to_degrees) const override {
-                return static_cast<float>(position) / calibration_steps_to_degrees;
-            }
-
-            float angleFromCurrentPosition(float calibration_steps_to_degrees) const override {
-                return scriptedPosition_ / calibration_steps_to_degrees;
+            float position() const override {
+                return scriptedPosition_;
             }
 
             bool resetPosition(uint16_t initial_position) override {
@@ -74,21 +92,9 @@ namespace ungula::encoder::drivers {
                 return true;
             }
 
-            int getEncoderResolution() const override {
-                return resolution_;
-            }
-
             Status readStatus() override {
                 ++readStatusCallCount_;
                 return scriptedStatus_;
-            }
-
-            bool setDirection(Direction direction) override {
-                direction_ = direction;
-                return true;
-            }
-            Direction getDirection() override {
-                return direction_;
             }
 
             bool isMagnetFound() override {
@@ -112,6 +118,15 @@ namespace ungula::encoder::drivers {
                 return watchDogEnabled_;
             }
 
+            // Making the accessors public so tests can script error
+            // conditions without subclassing.
+            void public_setStatus(Error error) {
+                setStatus(error);
+            }
+            void public_setInitializationStatus(Error error) {
+                setInitializationStatus(error);
+            }
+
             // ---- Test knobs ----
 
             void setBeginResult(bool ok) {
@@ -131,9 +146,6 @@ namespace ungula::encoder::drivers {
             }
             void setMagnetStatus(MagnetStatus s) {
                 magnetStatus_ = s;
-            }
-            void setResolution(int r) {
-                resolution_ = r;
             }
 
             // ---- Inspectors ----
@@ -156,8 +168,22 @@ namespace ungula::encoder::drivers {
             uint32_t isFunctionalCallCount() const {
                 return isFunctionalCallCount_;
             }
-            uint8_t lastDirectionPin() const {
-                return lastDirectionPin_;
+
+            // Direction-pin spy: every applyDirection() call records the
+            // value passed. Tests use this to verify pre-`begin()`
+            // direction settings reach hardware once `begin()` runs.
+            uint32_t applyDirectionCallCount() const {
+                return applyDirectionCallCount_;
+            }
+            Direction lastAppliedDirection() const {
+                return lastAppliedDirection_;
+            }
+
+        protected:
+            bool applyDirection(Direction direction) override {
+                ++applyDirectionCallCount_;
+                lastAppliedDirection_ = direction;
+                return true;
             }
 
         private:
@@ -167,17 +193,17 @@ namespace ungula::encoder::drivers {
             float scriptedPosition_ = 0.0f;
             Status scriptedStatus_ = Status::Ok;
             MagnetStatus magnetStatus_ = MagnetStatus::Ok;
-            int resolution_ = 4096;
-            Direction direction_ = Direction::ClockWise;
             bool watchDogEnabled_ = false;
 
-            uint8_t lastDirectionPin_ = ENCODER_NO_DIRECTION_PIN;
             uint32_t beginCallCount_ = 0;
             uint32_t readPositionCallCount_ = 0;
             uint32_t readStatusCallCount_ = 0;
             uint32_t resetCallCount_ = 0;
             uint32_t isConnectedCallCount_ = 0;
             uint32_t isFunctionalCallCount_ = 0;
+
+            uint32_t applyDirectionCallCount_ = 0;
+            Direction lastAppliedDirection_ = Direction::ClockWise;
     };
 
 }  // namespace ungula::encoder::drivers

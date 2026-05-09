@@ -7,30 +7,31 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "ungula/hal/multiplexer/i_multiplexer.h"
-
 /// @brief Chip-neutral encoder interface.
 ///
 /// Every concrete encoder driver inherits from `IEncoder` and implements
 /// the pure virtuals. Code that consumes encoders depends only on this
-/// header and stays portable across drivers.
+/// header and stays portable across drivers — including the transport
+/// path (I2C, SPI, PWM input, ABI quadrature). Transport details live
+/// in the concrete driver class, not here.
 ///
-/// ## Multiplexer is optional
+/// ## Direction is logical, not hardware
 ///
-/// Some boards run an encoder behind a TCA9548A-style I2C bus
-/// multiplexer (channel-select before each transaction); other boards
-/// wire the encoder straight onto a dedicated bus. Both cases are first
-/// class:
+/// `setDirection()` always succeeds, before or after `begin()`. The
+/// stored value is captured immediately; the hardware effect (DIR pin
+/// transition on chips that have one) lands when the driver is up. A
+/// pre-`begin()` `setDirectionCounterClockWise()` is honoured the
+/// moment `begin()` finishes its own setup.
 ///
-///   - **With multiplexer**: pass a `IMultiplexer*` and a channel to
-///     `begin(channel, ...)`. Every transaction calls `selectChannel()`
-///     first.
-///   - **Without multiplexer**: pass `nullptr` for the multiplexer.
-///     `selectMultiplexerChannel()` is a no-op and the channel argument
-///     is ignored.
+/// ## Capabilities — magnet, watchdog
 ///
-/// One driver, two deployments. The split is documented at every public
-/// entry point and verified by the test suite.
+/// Not every encoder is magnetic, and not every magnetic encoder
+/// exposes a watchdog. The base ships safe defaults: `hasMagnetSensing()`
+/// and `hasWatchDog()` return `false`, the related getters return
+/// "everything is fine" values. Concrete drivers that actually expose
+/// these features override `hasXxx()` to `true` and implement the
+/// underlying methods properly. Callers gate on `hasMagnetSensing()`
+/// before treating `magnetStatus()` as authoritative.
 ///
 /// ## Logging
 ///
@@ -41,8 +42,7 @@
 namespace ungula::encoder {
 
     /// @brief Sentinel for "no DIR pin wired" on encoders that expose one
-    /// (e.g. AS5600). When `directionPin == ENCODER_NO_DIRECTION_PIN` the
-    /// driver does not touch the pin and trusts the hardware default.
+    /// (e.g. AS5600). Drivers that don't have a DIR pin ignore this.
     constexpr uint8_t ENCODER_NO_DIRECTION_PIN = 255;
 
     enum class Direction : uint8_t {
@@ -82,12 +82,14 @@ namespace ungula::encoder {
     /// @brief Abstract base for all encoders.
     class IEncoder {
         public:
-            /// @param model       Short label, e.g. "AS5600". Borrowed.
-            /// @param name        Caller-chosen tag, e.g. "vertical". Borrowed.
-            /// @param multiplexer Optional. `nullptr` means "wired direct".
-            IEncoder(const char* model, const char* name,
-                     ungula::hal::multiplexer::IMultiplexer* multiplexer)
-                    : model_(model), name_(name), multiplexer_(multiplexer) {}
+            /// @param model      Short label, e.g. "AS5600". Borrowed.
+            /// @param name       Caller-chosen tag, e.g. "vertical". Borrowed.
+            /// @param resolution Full-scale steps per revolution
+            ///                   (e.g. 4096 for AS5600). Returned by
+            ///                   `getResolution()`. Chip property — set
+            ///                   once at construction, never changes.
+            IEncoder(const char* model, const char* name, int resolution)
+                    : model_(model), name_(name), resolution_(resolution) {}
 
             virtual ~IEncoder() = default;
 
@@ -110,66 +112,129 @@ namespace ungula::encoder {
             void clearLastError() {
                 setStatus(Error::None);
             }
-            void setStatus(Error error) {
-                last_error_ = error;
-                status_ = (error == Error::None) ? Status::Ok : Status::Error;
-            }
-            void setInitializationStatus(Error error) {
-                last_error_ = error;
-                status_ = (error == Error::None) ? Status::Ok : Status::InitializationError;
-            }
             const char* statusToStr() const;
 
-            bool hasMultiplexer() const {
-                return multiplexer_ != nullptr;
+            // ---- Calibration -----------------------------------------------
+            //
+            // Encoders are usually consumed in degrees, not raw counts. The
+            // conversion factor — encoder steps required for one degree of
+            // rotation — is a constant of the mechanical setup, not of the
+            // call site. Set once via `setCalibration()`. Default 0 means
+            // "uncalibrated"; every angle-returning method returns NaN
+            // until a positive value is set.
+
+            void setCalibration(float steps_per_degree) {
+                steps_per_degree_ = steps_per_degree;
+            }
+            float calibration() const {
+                return steps_per_degree_;
+            }
+            bool hasCalibration() const {
+                return steps_per_degree_ > 0.0f;
+            }
+
+            // ---- Direction (works before begin()) --------------------------
+            //
+            // Direction is a pure logical flag. The hardware effect (DIR
+            // pin write on chips that have one) only happens when the
+            // driver is initialised; before `begin()` the value is
+            // captured and applied during `begin()` itself. Drivers
+            // override `applyDirection()` to push the logical value to
+            // hardware.
+
+            bool setDirection(Direction direction) {
+                direction_ = direction;
+                if (isInitialized_) {
+                    return applyDirection(direction);
+                }
+                return true;
+            }
+            Direction getDirection() const {
+                return direction_;
+            }
+            bool setDirectionClockWise() {
+                return setDirection(Direction::ClockWise);
+            }
+            bool setDirectionCounterClockWise() {
+                return setDirection(Direction::CounterClockWise);
             }
 
             // ---- Driver contract ----
 
-            /// @brief Initialise the encoder.
-            /// @param multiplexerChannel Channel on the multiplexer, ignored
-            ///                           when `hasMultiplexer() == false`.
-            /// @param directionPin       MCU pin wired to the encoder's DIR
-            ///                           input, or `ENCODER_NO_DIRECTION_PIN`.
-            /// @return true on success. On failure call `getLastError()`
-            ///         for the reason.
-            virtual bool begin(uint8_t multiplexerChannel, uint8_t directionPin) = 0;
+            /// @brief Initialise the encoder. Drivers consume the
+            /// transport / pin parameters they were constructed with;
+            /// `begin()` itself takes nothing. After successful
+            /// initialisation drivers must call `applyDirection(direction_)`
+            /// so a pre-`begin()` direction setting takes effect.
+            /// @return true on success. On failure call `getLastError()`.
+            virtual bool begin() = 0;
 
             virtual bool isFunctional() = 0;
             virtual bool isConnected() = 0;
 
-            /// @return Current cumulative position in encoder steps,
-            ///         NaN on read error (caller checks via std::isnan).
+            // ---- Reading the chip (talks to hardware, side effects) -------
+
+            /// @brief Re-read the chip and return the cumulative
+            /// position in encoder steps.
+            /// @return NaN on read error or before `begin()`.
             virtual float readPosition() = 0;
 
-            /// @return Angle in degrees for `position` divided by
-            ///         `calibration_steps_to_degrees`.
-            virtual float angleFromPosition(int position,
-                                            float calibration_steps_to_degrees) const = 0;
+            /// @brief Re-read the chip and return the angle in degrees.
+            /// Default: `readPosition() / calibration()`. NaN on read
+            /// error or `!hasCalibration()`.
+            virtual float readAngle();
 
-            /// @return Same conversion using the internal cumulative position.
-            virtual float angleFromCurrentPosition(float calibration_steps_to_degrees) const = 0;
+            // ---- Cached getters (no I/O) ----------------------------------
+
+            virtual float position() const = 0;
+            float angle() const;
+            float angleFromPosition(int position) const;
 
             /// @brief Reset the cumulative position. `initial_position == 0`
             ///        snapshots the current raw angle as the new zero.
             virtual bool resetPosition(uint16_t initial_position) = 0;
 
-            /// @return Encoder full-scale resolution in steps (e.g. 4096).
-            virtual int getEncoderResolution() const = 0;
+            /// @return Encoder full-scale resolution in steps. Set
+            /// once at construction (chip property).
+            int getResolution() const {
+                return resolution_;
+            }
 
-            /// @brief Re-read the encoder, update internal status fields.
+            /// @brief Re-read the encoder and refresh internal status.
             virtual Status readStatus() = 0;
 
-            virtual bool setDirection(Direction direction) = 0;
-            virtual Direction getDirection() = 0;
+            // ---- Capabilities (default: not supported) --------------------
+            //
+            // Magnetic encoders override to true; ABI / optical /
+            // PWM-only encoders inherit the safe defaults. Callers
+            // gate on `hasMagnetSensing()` before trusting
+            // `magnetStatus()` and friends.
 
-            virtual bool isMagnetFound() = 0;
-            virtual bool isMagnetTooStrong() = 0;
-            virtual bool isMagnetTooWeak() = 0;
-            virtual MagnetStatus magnetStatus() = 0;
+            virtual bool hasMagnetSensing() const {
+                return false;
+            }
+            virtual MagnetStatus magnetStatus() {
+                return MagnetStatus::Ok;
+            }
+            virtual bool isMagnetFound() {
+                return true;
+            }
+            virtual bool isMagnetTooStrong() {
+                return false;
+            }
+            virtual bool isMagnetTooWeak() {
+                return false;
+            }
 
-            virtual bool setWatchDog(bool enabled) = 0;
-            virtual bool isWatchDogEnabled() = 0;
+            virtual bool hasWatchDog() const {
+                return false;
+            }
+            virtual bool setWatchDog(bool /*enabled*/) {
+                return false;
+            }
+            virtual bool isWatchDogEnabled() {
+                return false;
+            }
 
             // ---- Optional logging (off by default) ----
 
@@ -184,11 +249,22 @@ namespace ungula::encoder {
             }
 
         protected:
-            /// @brief Drivers call this before any I2C transaction. Returns
-            /// true when the bus is ready to talk to this encoder (i.e.
-            /// the multiplexer channel is selected, OR no multiplexer is
-            /// in use). On failure sets `MultiplexerError` and returns false.
-            bool selectMultiplexerChannel();
+            void setStatus(Error error) {
+                last_error_ = error;
+                status_ = (error == Error::None) ? Status::Ok : Status::Error;
+            }
+            void setInitializationStatus(Error error) {
+                last_error_ = error;
+                status_ = (error == Error::None) ? Status::Ok : Status::InitializationError;
+            }
+
+            /// @brief Push the logical direction to hardware. Drivers
+            /// with a DIR pin override; the default is a no-op (returns
+            /// true). Called from `setDirection()` post-`begin()` and
+            /// from the driver's own `begin()` after the pin is up.
+            virtual bool applyDirection(Direction /*direction*/) {
+                return true;
+            }
 
             /// @brief EmblogX module tag used by every log line emitted
             /// from this hierarchy.
@@ -200,31 +276,31 @@ namespace ungula::encoder {
 
             /// @brief Per-instance log helpers. Each prepends the prefix
             /// produced by `formatLogPrefix()` so drivers never repeat
-            /// the `[<model> <name> @0x<addr>:<channel>]` boilerplate.
-            /// No-op when logging is disabled. Format-checked.
-            void logInfof(const char* fmt, ...) const
-                    __attribute__((format(printf, 2, 3)));
-            void logWarnf(const char* fmt, ...) const
-                    __attribute__((format(printf, 2, 3)));
-            void logErrorf(const char* fmt, ...) const
-                    __attribute__((format(printf, 2, 3)));
-            void logDebugf(const char* fmt, ...) const
-                    __attribute__((format(printf, 2, 3)));
+            /// the `[<model> <name>]` boilerplate. No-op when logging
+            /// is disabled. Format-checked.
+            void logInfof(const char* fmt, ...) const __attribute__((format(printf, 2, 3)));
+            void logWarnf(const char* fmt, ...) const __attribute__((format(printf, 2, 3)));
+            void logErrorf(const char* fmt, ...) const __attribute__((format(printf, 2, 3)));
+            void logDebugf(const char* fmt, ...) const __attribute__((format(printf, 2, 3)));
 
             /// @brief Build the per-instance log prefix into `buf`.
-            /// Default shape: `[<model> <name> @0x<addr>:<channel>]`.
-            /// Drivers may override to add per-class fields.
+            /// Default shape: `[<model> <name>]`. Drivers may override
+            /// to add per-class fields (address, channel, etc.).
             virtual size_t formatLogPrefix(char* buf, size_t bufSize) const;
 
             // ---- Construction parameters ----
             const char* model_;
             const char* name_;
-            ungula::hal::multiplexer::IMultiplexer* multiplexer_;  // nullable
+            const int resolution_;
 
             // ---- Run-time state ----
             bool isInitialized_ = false;
-            uint8_t address_ = 0x00;
-            uint8_t multiplexerChannel_ = 0;
+
+            // Steps required to rotate by one degree on this rig. 0
+            // means "uncalibrated"; angle methods return NaN.
+            float steps_per_degree_ = 0.0f;
+
+            Direction direction_ = Direction::ClockWise;
 
             Status status_ = Status::Ok;
             Error last_error_ = Error::None;

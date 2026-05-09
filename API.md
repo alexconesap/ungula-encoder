@@ -14,23 +14,27 @@ with a `IMultiplexer*` (multiplexed deployment).
 
 ## Usage
 
-### Use case: direct-connect AS5600
+### Use case: direct-connect AS5600 over I2C
 
 ```cpp
 #include <ungula/hal/i2c/i2c_master.h>
-#include <ungula/encoder/drivers/as5600.h>
+#include <ungula/encoder/drivers/as5600_i2c.h>
 
 ungula::hal::i2c::I2cMaster bus(0);
-ungula::encoder::drivers::AS5600 enc("wheel", bus);   // no multiplexer
+ungula::encoder::drivers::As5600I2c enc("wheel", bus,
+                                        /*multiplexer=*/nullptr,
+                                        /*channel=*/0,
+                                        /*directionPin=*/4);
 
 void setup() {
     bus.begin(21, 22, 400000);
-    enc.begin(/*channel=*/0, /*directionPin=*/4);     // channel ignored
+    enc.begin();                       // no arguments — wiring set at construction
+    enc.setCalibration(11.377f);       // 4096 / 360
 }
 
 void loop() {
-    const float pos = enc.readPosition();
-    const float deg = enc.angleFromCurrentPosition(11.377f);
+    const float pos = enc.readPosition();   // raw counts
+    const float deg = enc.readAngle();      // degrees, uses stored calibration
 }
 ```
 
@@ -41,21 +45,21 @@ shared bus.
 
 ```cpp
 #include <ungula/hal/multiplexer/drivers/multiplexer_tca9548.h>
-#include <ungula/encoder/drivers/as5600.h>
+#include <ungula/encoder/drivers/as5600_i2c.h>
 
 namespace enc = ungula::encoder;
 namespace mux = ungula::hal::multiplexer;
 
 ungula::hal::i2c::I2cMaster bus(0);
 mux::drivers::MultiplexerTCA9548 mux70(0x70, bus);
-enc::drivers::AS5600 horiz("horizontal", bus, &mux70);
-enc::drivers::AS5600 vert ("vertical",   bus, &mux70);
+enc::drivers::As5600I2c horiz("horizontal", bus, &mux70, /*channel=*/0);
+enc::drivers::As5600I2c vert ("vertical",   bus, &mux70, /*channel=*/1);
 
 void setup() {
     bus.begin(21, 22, 400000);
     mux70.begin();
-    horiz.begin(0, enc::ENCODER_NO_DIRECTION_PIN);
-    vert .begin(1, enc::ENCODER_NO_DIRECTION_PIN);
+    horiz.begin();
+    vert.begin();
 }
 ```
 
@@ -76,7 +80,7 @@ trace without flooding the log with the other devices.
 
 ```cpp
 const uint16_t saved = readFromNvs();
-enc.begin(0, 4);
+enc.begin();
 enc.resetPosition(saved);   // 0 → take current angle as zero
 ```
 
@@ -89,13 +93,14 @@ survive power cycles.
 
 | Type | Header | Purpose |
 | ---- | ------ | ------- |
-| `ungula::encoder::IEncoder` | `ungula/encoder/i_encoder.h` | Chip-neutral interface, multiplexer optional |
+| `ungula::encoder::IEncoder` | `ungula/encoder/i_encoder.h` | Chip-neutral interface, transport-agnostic |
 | `ungula::encoder::Direction` (enum) | same | `None`, `ClockWise`, `CounterClockWise` |
 | `ungula::encoder::MagnetStatus` (enum) | same | `Ok`, `TooHigh`, `TooLow`, `NotFound`, `EncoderError` |
 | `ungula::encoder::Status` (enum) | same | `Ok`, `InitializationError`, `Error` |
 | `ungula::encoder::Error` (enum) | same | `None`, `NotInitialized`, `BeginFailed`, `NotConnected`, `MultiplexerError`, `MagnetNotDetected`, `MagnetError`, `MagnetErrorHigh`, `MagnetErrorLow`, `I2CReadError`, `I2CWriteError` |
-| `ungula::encoder::drivers::AS5600` | `ungula/encoder/drivers/as5600.h` | 12-bit magnetic rotary encoder |
-| `ungula::encoder::drivers::EncoderFake` | `ungula/encoder/drivers/encoder_fake.h` | Header-only test fake |
+| `ungula::encoder::drivers::As5600I2c` | `ungula/encoder/drivers/as5600_i2c.h` | 12-bit magnetic rotary encoder over I2C |
+| `ungula::encoder::drivers::EncoderFake` | `ungula/encoder/drivers/encoder_fake.h` | Header-only transport-agnostic test fake |
+| `ungula::encoder::drivers::I2cEncoderFake` | `ungula/encoder/drivers/i2c_encoder_fake.h` | Test fake that exercises the I2C-multiplexer routing path |
 
 `ENCODER_NO_DIRECTION_PIN = 255` — sentinel for "DIR pin not wired".
 
@@ -105,22 +110,20 @@ survive power cycles.
 
 ### Construction
 
-- **`IEncoder(const char* model, const char* name, IMultiplexer* multiplexer)`** — borrows all three pointers. `multiplexer == nullptr` is a first-class direct-connect deployment.
+- **`IEncoder(const char* model, const char* name, int resolution)`** — pure logical constructor. Borrows `model` and `name`; `resolution` (steps per revolution, e.g. 4096 for AS5600) is stored on the base and returned by `getResolution()`. **No transport, multiplexer, or pin numbers** at this level — those belong to concrete drivers.
 
 ### Identity
 
 - **`getName() / getModel()`** — borrowed pointers passed at construction.
-- **`hasMultiplexer()`** — `true` iff `multiplexer != nullptr`.
 
 ### Lifecycle
 
-- **`virtual bool begin(uint8_t multiplexerChannel, uint8_t directionPin) = 0`**
+- **`virtual bool begin() = 0`** — no arguments. Drivers consume the transport / pin parameters they were constructed with.
   Drivers must:
-  1. Set internal address / channel / direction-pin state.
-  2. Mark `isInitialized_ = true` (even on failure, so subsequent calls report the real error rather than `NotInitialized`).
-  3. Select the multiplexer channel via `selectMultiplexerChannel()` — works in both deployments.
-  4. Configure the DIR pin via `ungula::hal::gpio` if `directionPin != ENCODER_NO_DIRECTION_PIN`.
-  5. Capture the initial raw angle as zero.
+  1. Mark `isInitialized_ = true` (even on failure, so subsequent calls report the real error rather than `NotInitialized`).
+  2. Initialise their transport (probe the chip, configure GPIO, etc.).
+  3. Call `applyDirection(direction_)` so any pre-`begin()` direction setting takes effect.
+  4. Capture the initial position / zero / state.
 
 ### Status
 
@@ -130,45 +133,85 @@ survive power cycles.
 - **`getLastError() / getLastErrorAsStr()`** — last operation error.
 - **`statusToStr()`** — formatted "[MODEL name @ 0xNN:N] message" string. Internal static buffer; not reentrant. Use `_m`-flavoured EmblogX calls for log lines instead.
 
-### Position
+### Calibration (set once, then forget)
 
-- **`readPosition()`** — current cumulative position in encoder steps. Returns NaN on read error or before `begin()`.
-- **`angleFromPosition(int position, float calibration_steps_to_degrees)`** — `position / calibration_steps_to_degrees`.
-- **`angleFromCurrentPosition(float calibration_steps_to_degrees)`** — same on the internal cumulative position.
-- **`resetPosition(uint16_t initial_position)`** — reset cumulative position; `0` snapshots the current angle.
-- **`getEncoderResolution()`** — full-scale steps (e.g. 4096 for AS5600).
+- **`setCalibration(float steps_per_degree)`** — store the rig's encoder-steps-per-degree. Default is `0.0f` (uncalibrated); pass `0.0f` to clear.
+- **`calibration()`** — current value.
+- **`hasCalibration()`** — `calibration() > 0.0f`.
 
-### Direction / magnet / watchdog
+Every angle-returning method below returns `NaN` while `!hasCalibration()`. The library refuses to invent a conversion factor.
 
-- **`setDirection(Direction)` / `getDirection()`**
-- **`isMagnetFound()` / `isMagnetTooStrong()` / `isMagnetTooWeak()` / `magnetStatus()`**
-- **`setWatchDog(bool)` / `isWatchDogEnabled()`**
+### Position (talks to hardware, side effects)
+
+- **`readPosition()`** — re-read the chip, update the cached cumulative position, return it. NaN on read error or before `begin()`.
+- **`readAngle()`** — `readPosition()` then divide by the stored calibration. Default base implementation; drivers can override. NaN on read error or when `!hasCalibration()`.
+
+### Position (cached, no I/O)
+
+- **`position()`** — last cumulative position (steps). `0.0f` before the first successful `readPosition()`.
+- **`angle()`** — `position() / calibration()`. NaN when `!hasCalibration()`.
+- **`angleFromPosition(int position)`** — pure conversion using the stored calibration. NaN when `!hasCalibration()`.
+
+### Misc
+
+- **`resetPosition(uint16_t initial_position)`** — reset cumulative position; `0` snapshots the current raw angle.
+- **`getResolution()`** — full-scale steps per revolution (e.g. 4096 for AS5600).
+
+### Direction (works before begin())
+
+- **`setDirection(Direction)` / `getDirection()`** — pure logical setter / getter on the base. `setDirection()` always succeeds: it caches the value and, if the driver is already initialised, calls the protected virtual `applyDirection()` so the DIR pin (when wired) updates immediately. Pre-`begin()` calls land on the wire when `begin()` finishes.
+- **`setDirectionClockWise()` / `setDirectionCounterClockWise()`** — convenience wrappers.
+
+### Capabilities (default: not supported)
+
+`IEncoder` ships safe defaults so non-magnetic / no-watchdog drivers don't have to implement these. Concrete drivers that actually expose the feature override `hasXxx()` to `true` and the underlying methods.
+
+- **`hasMagnetSensing()`** — default `false`. AS5600/AS5047P/etc. override to `true`.
+- **`magnetStatus()` / `isMagnetFound()` / `isMagnetTooStrong()` / `isMagnetTooWeak()`** — default to "everything is fine". Callers should gate on `hasMagnetSensing()` before treating the result as authoritative.
+- **`hasWatchDog()`** — default `false`. AS5600 overrides to `true`.
+- **`setWatchDog(bool)` / `isWatchDogEnabled()`** — default no-op (returns `false`).
 
 ### Logging (off by default)
 
 - **`enableLogging() / disableLogging() / isLoggingEnabled()`**
   EmblogX module tag is `encoder`. Per-instance — there is no global toggle.
 
-### Protected helpers
+### Protected helpers (for driver authors)
 
-- **`selectMultiplexerChannel()`** — drivers call this before any I2C transaction. Returns true when the bus is ready (channel selected, or no mux). Sets `Error::MultiplexerError` on failure, `Error::NotInitialized` if `begin()` was never called.
+- **`applyDirection(Direction)`** — protected virtual. Drivers with a DIR pin override to push the logical value to hardware. Default is a no-op (returns `true`). Called from `setDirection()` post-`begin()` and from the driver's own `begin()` to honour pre-`begin()` settings.
+- **`logInfof / logWarnf / logErrorf / logDebugf`** — printf-style helpers that prepend the per-instance prefix automatically.
+- **`virtual size_t formatLogPrefix(char*, size_t)`** — overrideable prefix builder. Default: `[<model> <name>]`. The I2C driver overrides to add address + channel.
 
 ---
 
-## `ungula::encoder::drivers::AS5600`
+## `ungula::encoder::drivers::As5600I2c`
 
 12-bit magnetic encoder, fixed I2C address `0x36`, default 400 kHz.
+This is the **I2C-only transport**; future drivers will cover PWM input
+(`As5600Pwm`) and combined I2C+PWM (`As5600I2cPwm`).
 
 ```cpp
-AS5600(const char* name, ungula::hal::i2c::I2cMaster& bus,
-       ungula::hal::multiplexer::IMultiplexer* multiplexer = nullptr);
+As5600I2c(const char* name,
+          ungula::hal::i2c::I2cMaster& bus,
+          ungula::hal::multiplexer::IMultiplexer* multiplexer = nullptr,
+          uint8_t multiplexerChannel = 0,
+          uint8_t directionPin = ENCODER_NO_DIRECTION_PIN);
 ```
 
-- Borrows the `I2cMaster`. Caller owns it and must call `bus.begin(...)` before `enc.begin(...)`.
-- `multiplexer` defaults to `nullptr` — direct-connect.
-- `getEncoderResolution()` returns 4096.
+- All wiring (bus, multiplexer + channel, DIR pin) is captured at
+  construction. `begin()` takes no arguments.
+- Borrows the `I2cMaster`. Caller owns it and must call `bus.begin(...)`
+  before `enc.begin()`.
+- `multiplexer` defaults to `nullptr` (direct-connect). When a multiplexer
+  is wired, the driver auto-selects the channel before every I2C
+  transaction; host code stays unchanged.
+- `getResolution()` returns 4096.
 - DIR pin is optional; pass `ENCODER_NO_DIRECTION_PIN` to skip.
-- Wrap-around (`4095 → 0`, `0 → 4095`) is handled internally; cumulative position is monotonic until `resetPosition()`.
+- Wrap-around (`4095 → 0`, `0 → 4095`) is handled internally; cumulative
+  position is monotonic until `resetPosition()`.
+- `hasMagnetSensing()` and `hasWatchDog()` both report `true`.
+- `setDirection*()` calls work before `begin()` — value is captured and
+  the DIR pin is written when the pin is configured during `begin()`.
 
 ### Constants
 
@@ -178,6 +221,9 @@ AS5600(const char* name, ungula::hal::i2c::I2cMaster& bus,
 ### Hardware notes
 
 - Watchdog: enabling `setWatchDog(true)` makes the chip self-reset after ~1.6 s without I2C traffic. Useful for long-running rigs that don't poll continuously.
+
+#### Ungula's hardware notes
+
 - Direction quirk: on the original Rachel rig, clockwise rotation returned **decreasing** raw values when DIR was tied to GND. The driver inverts the diff sign internally when `direction_ == ClockWise`. New rigs that wire DIR differently must call `setDirection(CounterClockWise)` to flip the convention.
 
 ---
@@ -192,7 +238,7 @@ Header-only test fake. Drop-in for any code that takes `IEncoder*`.
 - `setScriptedPosition(float)` — value returned by `readPosition()`.
 - `setScriptedStatus(Status)` — value returned by `readStatus()`.
 - `setMagnetStatus(MagnetStatus)` — drives `isMagnetFound/TooStrong/TooWeak`.
-- `setResolution(int)` — override `getEncoderResolution()`.
+- `setResolution(int)` — override `getResolution()`.
 
 ### Inspectors
 

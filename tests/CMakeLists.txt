@@ -17,7 +17,7 @@ FetchContent_MakeAvailable(googletest)
 # ---------------------------------------------------------------------------
 # Dependencies. UngulaCore (time API), UngulaHal (multiplexer interface,
 # I2C master, GPIO) and EmblogX (logging from inside i_encoder.cpp /
-# as5600.cpp) — all sibling libraries during local development.
+# as5600_i2c.cpp) — all sibling libraries during local development.
 # ---------------------------------------------------------------------------
 option(USE_LOCAL_DEPS "Use local sibling lib*/ directories" ON)
 
@@ -91,9 +91,9 @@ target_link_libraries(test_ungula_encoder gtest_main)
 # stub, and stays a valid IEncoder.
 # ---------------------------------------------------------------------------
 add_executable(test_ungula_encoder_as5600
-    test_as5600.cpp
+    test_as5600_i2c.cpp
     ${LIB_ENCODER_SRC}/ungula/encoder/i_encoder.cpp
-    ${LIB_ENCODER_SRC}/ungula/encoder/drivers/as5600.cpp
+    ${LIB_ENCODER_SRC}/ungula/encoder/drivers/as5600_i2c.cpp
     ${LIB_HAL_SRC}/ungula/hal/multiplexer/i_multiplexer.cpp
     ${LIB_HAL_SRC}/ungula/hal/i2c/platforms/i2c_master_default.cpp
     ${LIB_EMBLOGX_SRC}/emblogx/logger_core.cpp
