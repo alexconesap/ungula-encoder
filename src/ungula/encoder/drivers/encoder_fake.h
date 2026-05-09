@@ -30,9 +30,8 @@ namespace ungula::encoder::drivers {
 
     class EncoderFake final : public IEncoder {
         public:
-            EncoderFake(const char* name = "fake",
-                        int resolution = FAKE_DEFAULT_RESOLUTION)
-                    : IEncoder("FAKE", name, resolution) {}
+            EncoderFake(const char* name = "fake", int resolution = FAKE_DEFAULT_RESOLUTION)
+                : IEncoder("FAKE", name, resolution) {}
 
             // ---- Capability flags (default: not supported) -----------------
             //

@@ -33,7 +33,7 @@ namespace ungula::encoder::drivers {
     constexpr uint8_t AS5600_DEFAULT_ADDRESS = 0x36;
     constexpr uint16_t AS5600_RESOLUTION = 4096;
 
-    class As5600I2c final : public IEncoder {
+    class As5600I2c : public IEncoder {
         public:
             /// @param name              Caller-chosen tag, e.g. "vertical".
             /// @param bus               I2C bus the encoder lives on. Borrowed.
@@ -47,11 +47,11 @@ namespace ungula::encoder::drivers {
                       ungula::hal::multiplexer::IMultiplexer* multiplexer = nullptr,
                       uint8_t multiplexerChannel = 0,
                       uint8_t directionPin = ENCODER_NO_DIRECTION_PIN)
-                    : IEncoder("AS5600", name, AS5600_RESOLUTION),
-                      bus_(bus),
-                      multiplexer_(multiplexer),
-                      multiplexerChannel_(multiplexerChannel),
-                      directionPin_(directionPin) {}
+                : IEncoder("AS5600", name, AS5600_RESOLUTION),
+                  bus_(bus),
+                  multiplexer_(multiplexer),
+                  multiplexerChannel_(multiplexerChannel),
+                  directionPin_(directionPin) {}
 
             // ---- Capabilities (override the safe defaults) ----------------
 

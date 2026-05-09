@@ -298,14 +298,13 @@ namespace ungula::encoder::drivers {
         // Driver override that includes the I2C address and the
         // currently-selected mux channel — handy when several encoders
         // share a bus and the log line needs to identify which one.
-        const int n = snprintf(buf, bufSize, "[%s %s @0x%02X:%u]",
-                               getModel(), getName(), address_, multiplexerChannel_);
+        const int n = snprintf(buf, bufSize, "[%s %s @0x%02X:%u]", getModel(), getName(), address_,
+                               multiplexerChannel_);
         return (n < 0) ? 0 : static_cast<size_t>(n);
     }
 
     void As5600I2c::logPosition(uint16_t current_raw_position, int diff_raw) {
-        const uint8_t channel =
-                multiplexer_ != nullptr ? multiplexer_->getCurrentChannel() : 0xFF;
+        const uint8_t channel = multiplexer_ != nullptr ? multiplexer_->getCurrentChannel() : 0xFF;
         logDebugf("ch=%u zero=%u cur=%u last=%u diff=%d cum=%d", channel, zero_raw_position_,
                   current_raw_position, last_raw_position_, diff_raw, cumulative_position_);
     }

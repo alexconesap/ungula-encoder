@@ -102,7 +102,62 @@ add_executable(test_ungula_encoder_as5600
 )
 target_link_libraries(test_ungula_encoder_as5600 gtest_main)
 
+# ---------------------------------------------------------------------------
+# AS5600 PWM transports — As5600Pwm and As5600I2cPwm. Driven by the
+# PwmInputFake from lib_hal so tests script samples without hardware.
+# ---------------------------------------------------------------------------
+add_executable(test_ungula_encoder_as5600_pwm
+    test_as5600_pwm.cpp
+    ${LIB_ENCODER_SRC}/ungula/encoder/i_encoder.cpp
+    ${LIB_ENCODER_SRC}/ungula/encoder/drivers/as5600_i2c.cpp
+    ${LIB_ENCODER_SRC}/ungula/encoder/drivers/as5600_pwm.cpp
+    ${LIB_ENCODER_SRC}/ungula/encoder/drivers/as5600_i2c_pwm.cpp
+    ${LIB_HAL_SRC}/ungula/hal/multiplexer/i_multiplexer.cpp
+    ${LIB_HAL_SRC}/ungula/hal/i2c/platforms/i2c_master_default.cpp
+    ${LIB_HAL_SRC}/ungula/hal/pwm_input/i_pwm_input.cpp
+    ${LIB_EMBLOGX_SRC}/emblogx/logger_core.cpp
+    ${LIB_EMBLOGX_SRC}/emblogx/async_dispatcher.cpp
+    ${LIB_EMBLOGX_SRC}/emblogx/sinks/console_sink.cpp
+)
+target_link_libraries(test_ungula_encoder_as5600_pwm gtest_main)
+
+# ---------------------------------------------------------------------------
+# SPI encoder drivers — AS5047P, MA730, MT6835. Smoke tests against the
+# desktop SPI stub: every transfer fails so the tests verify boundary
+# behaviour (type identity, capability flags, error reporting).
+# ---------------------------------------------------------------------------
+add_executable(test_ungula_encoder_spi
+    test_spi_encoders.cpp
+    ${LIB_ENCODER_SRC}/ungula/encoder/i_encoder.cpp
+    ${LIB_ENCODER_SRC}/ungula/encoder/drivers/as5047p_spi.cpp
+    ${LIB_ENCODER_SRC}/ungula/encoder/drivers/ma730_spi.cpp
+    ${LIB_ENCODER_SRC}/ungula/encoder/drivers/mt6835_spi.cpp
+    ${LIB_HAL_SRC}/ungula/hal/spi/platforms/spi_master_default.cpp
+    ${LIB_EMBLOGX_SRC}/emblogx/logger_core.cpp
+    ${LIB_EMBLOGX_SRC}/emblogx/async_dispatcher.cpp
+    ${LIB_EMBLOGX_SRC}/emblogx/sinks/console_sink.cpp
+)
+target_link_libraries(test_ungula_encoder_spi gtest_main)
+
+# ---------------------------------------------------------------------------
+# MT6701 ABI driver — pure host. DecoderFake from lib_hal scripts the
+# quadrature counts; no SPI/I2C/PWM dependencies.
+# ---------------------------------------------------------------------------
+add_executable(test_ungula_encoder_mt6701
+    test_mt6701_abi.cpp
+    ${LIB_ENCODER_SRC}/ungula/encoder/i_encoder.cpp
+    ${LIB_ENCODER_SRC}/ungula/encoder/drivers/mt6701_abi.cpp
+    ${LIB_HAL_SRC}/ungula/hal/quadrature/i_decoder.cpp
+    ${LIB_EMBLOGX_SRC}/emblogx/logger_core.cpp
+    ${LIB_EMBLOGX_SRC}/emblogx/async_dispatcher.cpp
+    ${LIB_EMBLOGX_SRC}/emblogx/sinks/console_sink.cpp
+)
+target_link_libraries(test_ungula_encoder_mt6701 gtest_main)
+
 enable_testing()
 include(GoogleTest)
 gtest_discover_tests(test_ungula_encoder)
 gtest_discover_tests(test_ungula_encoder_as5600)
+gtest_discover_tests(test_ungula_encoder_as5600_pwm)
+gtest_discover_tests(test_ungula_encoder_spi)
+gtest_discover_tests(test_ungula_encoder_mt6701)

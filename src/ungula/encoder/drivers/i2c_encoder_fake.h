@@ -31,9 +31,9 @@ namespace ungula::encoder::drivers {
                            ungula::hal::multiplexer::IMultiplexer* multiplexer = nullptr,
                            uint8_t multiplexerChannel = 0,
                            int resolution = I2C_FAKE_DEFAULT_RESOLUTION)
-                    : IEncoder("FAKE_I2C", name, resolution),
-                      multiplexer_(multiplexer),
-                      multiplexerChannel_(multiplexerChannel) {}
+                : IEncoder("FAKE_I2C", name, resolution),
+                  multiplexer_(multiplexer),
+                  multiplexerChannel_(multiplexerChannel) {}
 
             bool hasMagnetSensing() const override {
                 return true;

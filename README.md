@@ -39,8 +39,14 @@ Both work through the same `IEncoder` API. The multiplexer is **optional**.
 | Chip   | Bus | Resolution | Driver |
 | ------ | --- | ---------- | ------ |
 | AS5600 | I2C (`I2cMaster`) | 12 bit / 4096 steps | `ungula::encoder::drivers::As5600I2c` |
+| AS5600 | PWM (`IPwmInput`) | 12 bit / 4096 steps | `ungula::encoder::drivers::As5600Pwm` |
+| AS5600 | I2C + PWM (combined) | 12 bit / 4096 steps | `ungula::encoder::drivers::As5600I2cPwm` |
+| AS5047P | SPI (`SpiMaster`) | 14 bit / 16384 steps | `ungula::encoder::drivers::As5047pSpi` |
+| MA730 | SPI (`SpiMaster`) | 14 bit / 16384 steps | `ungula::encoder::drivers::Ma730Spi` |
+| MT6835 | SPI (`SpiMaster`) | 21 bit / 2'097'152 steps | `ungula::encoder::drivers::Mt6835Spi` |
+| MT6701 | ABI / quadrature (`IDecoder`) | up to 16384 counts (decoder-dependent) | `ungula::encoder::drivers::Mt6701Abi` |
 
-More chips (AS5047P SPI, MA730 SPI, MT6835 SPI, MT6701 ABI) and more transports for AS5600 (PWM input, I2C+PWM combined) are queued for follow-up phases. The `IEncoder` interface is now transport-agnostic so they slot in without breaking host code.
+The `IEncoder` interface is transport-agnostic so new drivers (additional ABI chips, RS-485 absolute encoders, optical encoders) slot in without breaking host code.
 
 ## Dependencies
 
@@ -80,6 +86,12 @@ ungula::encoder
 │    └── enableLogging() / disableLogging()
 └── drivers/
      ├── As5600I2c                 ← AS5600 over I2C (+ optional mux + DIR pin)
+     ├── As5600Pwm                 ← AS5600 over PWM input only (no bus)
+     ├── As5600I2cPwm              ← AS5600 over I2C + PWM (fast read path)
+     ├── As5047pSpi                ← AMS AS5047P over SPI (14-bit, magnet diag)
+     ├── Ma730Spi                  ← Monolithic Power MA730 over SPI (14-bit)
+     ├── Mt6835Spi                 ← MagnTek MT6835 over SPI (21-bit, in-band CRC)
+     ├── Mt6701Abi                 ← MT6701 over ABI quadrature (PCNT-backed)
      ├── EncoderFake               ← header-only fake (transport-agnostic)
      └── I2cEncoderFake            ← header-only fake exercising the mux path
 ```

@@ -54,8 +54,7 @@ namespace ungula::encoder {
         }
         // Default: just `[<model> <name>]`. Drivers with extra wiring
         // info (address, mux channel, etc.) override this to add it.
-        const int n = snprintf(buf, bufSize, "[%s %s]",
-                               model_ != nullptr ? model_ : "?",
+        const int n = snprintf(buf, bufSize, "[%s %s]", model_ != nullptr ? model_ : "?",
                                name_ != nullptr ? name_ : "?");
         return (n < 0) ? 0 : static_cast<size_t>(n);
     }

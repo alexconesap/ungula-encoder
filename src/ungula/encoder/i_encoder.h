@@ -89,7 +89,7 @@ namespace ungula::encoder {
             ///                   `getResolution()`. Chip property — set
             ///                   once at construction, never changes.
             IEncoder(const char* model, const char* name, int resolution)
-                    : model_(model), name_(name), resolution_(resolution) {}
+                : model_(model), name_(name), resolution_(resolution) {}
 
             virtual ~IEncoder() = default;
 
