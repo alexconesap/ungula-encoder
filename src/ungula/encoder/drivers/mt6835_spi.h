@@ -27,46 +27,48 @@
 /// Magnet-status bits (LFB / OBT / OW) are exposed through the chip's
 /// status nibble in byte 5; mapped onto `MagnetStatus` here.
 
-namespace ungula::encoder::drivers {
+namespace ungula::encoder::drivers
+{
 
-    constexpr uint32_t MT6835_RESOLUTION = 2'097'152U;  // 2^21
+    constexpr uint32_t MT6835_RESOLUTION = 2 '097' 152U; // 2^21
 
     class Mt6835Spi final : public IEncoder {
-        public:
-            Mt6835Spi(const char* name, ungula::hal::spi::SpiMaster& spi);
+    public:
+        Mt6835Spi(const char *name, ungula::hal::spi::SpiMaster &spi);
 
-            bool hasMagnetSensing() const override {
-                return true;
-            }
+        bool hasMagnetSensing() const override
+        {
+            return true;
+        }
 
-            bool begin() override;
-            bool isFunctional() override;
-            bool isConnected() override;
+        bool begin() override;
+        bool isFunctional() override;
+        bool isConnected() override;
 
-            float readPosition() override;
-            float position() const override;
-            bool resetPosition(uint16_t initial_position) override;
-            Status readStatus() override;
+        float readPosition() override;
+        float position() const override;
+        bool resetPosition(uint16_t initial_position) override;
+        Status readStatus() override;
 
-            MagnetStatus magnetStatus() override;
-            bool isMagnetFound() override;
-            bool isMagnetTooStrong() override;
-            bool isMagnetTooWeak() override;
+        MagnetStatus magnetStatus() override;
+        bool isMagnetFound() override;
+        bool isMagnetTooStrong() override;
+        bool isMagnetTooWeak() override;
 
-        private:
-            // Returns angle in [0, 2^21). Sets last_error_ on failure;
-            // statusNibble receives the in-band status bits when present.
-            uint32_t readRawAngle(uint8_t* statusNibble = nullptr);
+    private:
+        // Returns angle in [0, 2^21). Sets last_error_ on failure;
+        // statusNibble receives the in-band status bits when present.
+        uint32_t readRawAngle(uint8_t *statusNibble = nullptr);
 
-            void calibrateZero(uint32_t initial_position);
+        void calibrateZero(uint32_t initial_position);
 
-            ungula::hal::spi::SpiMaster& spi_;
+        ungula::hal::spi::SpiMaster &spi_;
 
-            uint32_t zero_raw_position_ = 0;
-            uint32_t last_raw_position_ = 0;
-            int64_t cumulative_position_ = 0;
-            bool hasFirstSample_ = false;
-            uint8_t lastStatus_ = 0;
+        uint32_t zero_raw_position_ = 0;
+        uint32_t last_raw_position_ = 0;
+        int64_t cumulative_position_ = 0;
+        bool hasFirstSample_ = false;
+        uint8_t lastStatus_ = 0;
     };
 
-}  // namespace ungula::encoder::drivers
+} // namespace ungula::encoder::drivers

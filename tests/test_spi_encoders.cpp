@@ -12,7 +12,8 @@
 #include <ungula/encoder/i_encoder.h>
 #include <ungula/hal/spi/spi_master.h>
 
-namespace {
+namespace
+{
 
     using ungula::encoder::IEncoder;
     using ungula::encoder::drivers::As5047pSpi;
@@ -28,29 +29,33 @@ namespace {
 
     // ---- AS5047P --------------------------------------------------------
 
-    TEST(As5047pSpi, IsAValidIEncoder) {
+    TEST(As5047pSpi, IsAValidIEncoder)
+    {
         SpiMaster bus;
         As5047pSpi enc("vert", bus);
-        IEncoder* api = static_cast<IEncoder*>(&enc);
+        IEncoder *api = static_cast<IEncoder *>(&enc);
         EXPECT_NE(api, nullptr);
         EXPECT_EQ(enc.getResolution(), 16384);
     }
 
-    TEST(As5047pSpi, ReadFailsOnUnreachableBus) {
+    TEST(As5047pSpi, ReadFailsOnUnreachableBus)
+    {
         SpiMaster bus;
         As5047pSpi enc("vert", bus);
         enc.begin();
         EXPECT_TRUE(std::isnan(enc.readPosition()));
     }
 
-    TEST(As5047pSpi, AdvertisesMagnetSensingButNoWatchdog) {
+    TEST(As5047pSpi, AdvertisesMagnetSensingButNoWatchdog)
+    {
         SpiMaster bus;
         As5047pSpi enc("vert", bus);
         EXPECT_TRUE(enc.hasMagnetSensing());
         EXPECT_FALSE(enc.hasWatchDog());
     }
 
-    TEST(As5047pSpi, DirectionSetBeforeBeginPersists) {
+    TEST(As5047pSpi, DirectionSetBeforeBeginPersists)
+    {
         SpiMaster bus;
         As5047pSpi enc("vert", bus);
         EXPECT_TRUE(enc.setDirectionCounterClockWise());
@@ -60,22 +65,25 @@ namespace {
 
     // ---- MA730 ----------------------------------------------------------
 
-    TEST(Ma730Spi, IsAValidIEncoder) {
+    TEST(Ma730Spi, IsAValidIEncoder)
+    {
         SpiMaster bus;
         Ma730Spi enc("vert", bus);
-        IEncoder* api = static_cast<IEncoder*>(&enc);
+        IEncoder *api = static_cast<IEncoder *>(&enc);
         EXPECT_NE(api, nullptr);
         EXPECT_EQ(enc.getResolution(), 16384);
     }
 
-    TEST(Ma730Spi, NoMagnetSensingByDefault) {
+    TEST(Ma730Spi, NoMagnetSensingByDefault)
+    {
         SpiMaster bus;
         Ma730Spi enc("vert", bus);
         EXPECT_FALSE(enc.hasMagnetSensing());
         EXPECT_FALSE(enc.hasWatchDog());
     }
 
-    TEST(Ma730Spi, ReadFailsOnUnreachableBus) {
+    TEST(Ma730Spi, ReadFailsOnUnreachableBus)
+    {
         SpiMaster bus;
         Ma730Spi enc("vert", bus);
         enc.begin();
@@ -84,29 +92,33 @@ namespace {
 
     // ---- MT6835 ---------------------------------------------------------
 
-    TEST(Mt6835Spi, IsAValidIEncoder) {
+    TEST(Mt6835Spi, IsAValidIEncoder)
+    {
         SpiMaster bus;
         Mt6835Spi enc("vert", bus);
-        IEncoder* api = static_cast<IEncoder*>(&enc);
+        IEncoder *api = static_cast<IEncoder *>(&enc);
         EXPECT_NE(api, nullptr);
         EXPECT_EQ(enc.getResolution(), static_cast<int>(ungula::encoder::drivers::MT6835_RESOLUTION));
     }
 
-    TEST(Mt6835Spi, AdvertisesMagnetSensing) {
+    TEST(Mt6835Spi, AdvertisesMagnetSensing)
+    {
         SpiMaster bus;
         Mt6835Spi enc("vert", bus);
         EXPECT_TRUE(enc.hasMagnetSensing());
     }
 
-    TEST(Mt6835Spi, ReadFailsOnUnreachableBus) {
+    TEST(Mt6835Spi, ReadFailsOnUnreachableBus)
+    {
         SpiMaster bus;
         Mt6835Spi enc("vert", bus);
         enc.begin();
         EXPECT_TRUE(std::isnan(enc.readPosition()));
     }
 
-    TEST(Mt6835Spi, ResolutionMatches21Bits) {
+    TEST(Mt6835Spi, ResolutionMatches21Bits)
+    {
         EXPECT_EQ(static_cast<int>(ungula::encoder::drivers::MT6835_RESOLUTION), 1 << 21);
     }
 
-}  // namespace
+} // namespace

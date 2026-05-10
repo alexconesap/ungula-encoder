@@ -20,6 +20,8 @@ Both work through the same `IEncoder` API. The multiplexer is **optional**.
 - [Architecture](#architecture)
 - [Quick start — direct connect](#quick-start--direct-connect)
 - [Quick start — behind a multiplexer](#quick-start--behind-a-multiplexer)
+- [Quick start — PWM-only (`As5600Pwm`)](#quick-start--pwm-only-as5600pwm)
+- [Quick start — I2C + PWM combined (`As5600I2cPwm`)](#quick-start--i2c--pwm-combined-as5600i2cpwm)
 - [Multiplexer is optional](#multiplexer-is-optional)
 - [Logging](#logging)
 - [Testing](#testing)
@@ -181,6 +183,160 @@ void loop() {
 The multiplexer caches the active channel. Reading `vertical` twice in a
 row only writes the channel once — the second call is a cache hit and
 goes straight to the AS5600.
+
+## Quick start — PWM-only (`As5600Pwm`)
+
+The AS5600 emits a single-pin PWM where the duty cycle encodes the angle.
+With this transport, you do not need a free I2C bus — only one input pin
+plus the chip's PWM output. Magnet diagnostics and the watchdog are
+**not** available in PWM mode (those live behind the I2C register file);
+the driver reports `hasMagnetSensing()` and `hasWatchDog()` as `false`,
+so callers that gate on those flags do the right thing automatically.
+
+```cpp
+#include <ungula/encoder/drivers/as5600_pwm.h>
+#include <ungula/hal/pwm_input/drivers/pwm_input.h>
+
+namespace enc = ungula::encoder;
+namespace pwm = ungula::hal::pwm_input;
+
+pwm::drivers::PwmInput cap;
+enc::drivers::As5600Pwm wheel("wheel", cap,
+                              /*directionPin=*/ungula::encoder::ENCODER_NO_DIRECTION_PIN);
+
+void setup() {
+    cap.begin(/*pin=*/34);     // PWM output of the chip lands here
+    wheel.begin();
+    wheel.setCalibration(11.377f);  // 4096 counts / 360°
+}
+
+void loop() {
+    const float deg = wheel.readAngle();   // NaN until first PWM frame arrives
+    if (!std::isnan(deg)) {
+        // use deg
+    }
+}
+```
+
+The driver flags a stalled signal as `Error::NotConnected` when the last
+edge is older than the (configurable) stale threshold (default 50 ms,
+~6 frames at the slowest 115 Hz mode). Tune it via
+`wheel.setStaleThresholdUs(...)` — pick a window that comfortably
+covers two frame periods on the host's PWMF setting.
+
+### ISR-driven angle updates — no polling required
+
+The PWM ISR captures `(highUs, periodUs)` for every frame whether the
+host polls or not. What the host *does* still need to do, in the polling
+model, is feed the cumulative-position counter — wrap-around tracking
+needs to see two consecutive samples that are less than half a
+revolution apart. Skip the read for a full turn and the next decode
+will pick the wrong direction.
+
+For consumers that need true per-frame latency, `enableIsrUpdates()`
+moves the wrap-around math into the same ISR that captures the sample.
+After it is enabled, `position()` and `readAngle()` return the latest
+cumulative count without any polling task running:
+
+```cpp
+#include <ungula/encoder/drivers/as5600_pwm.h>
+#include <ungula/hal/pwm_input/drivers/pwm_input.h>
+
+namespace enc = ungula::encoder;
+namespace pwm = ungula::hal::pwm_input;
+
+pwm::drivers::PwmInput cap;
+enc::drivers::As5600Pwm wheel("wheel", cap);
+
+void setup() {
+    cap.begin(/*pin=*/34);
+    wheel.begin();
+    wheel.setCalibration(11.377f);
+    wheel.enableIsrUpdates();   // arm the per-period ISR callback
+}
+
+void loop() {
+    // No periodic readPosition() needed — the ISR keeps the cumulative
+    // count fresh. Read it whenever the application wants it.
+    const float deg = wheel.readAngle();
+    if (!std::isnan(deg)) {
+        // use deg
+    }
+}
+```
+
+What the ISR does and does not do:
+
+- **Does**: decode raw angle from the latest sample, fold the
+  4095↔0 transition into the cumulative count, update the seed on the
+  first sample. All in IRAM, no float ops on the position state, no
+  logging, no I2C / SPI.
+- **Does not**: call `setStatus()` (would race with the host),
+  `magnetStatus()` / `setWatchDog()` (those are I2C-bound and live on
+  `As5600I2cPwm`'s polling side), or anything that allocates.
+
+`disableIsrUpdates()` removes the callback; the next `readPosition()`
+falls back to the polling decode path and picks up where the ISR left
+off. Mixing the two modes is supported but only makes sense during a
+controlled handoff — pick one for steady-state operation.
+
+## Quick start — I2C + PWM combined (`As5600I2cPwm`)
+
+The AS5600 is happy to drive both transports at the same time: register
+access (magnet status, watchdog, zero-snapshot) over I2C, and a
+lower-latency angle stream on the PWM pin. `As5600I2cPwm` is exactly
+that — it inherits `As5600I2c` for the diagnostic register path and
+overrides the read path to use the PWM input. Capability flags reflect
+both transports: `hasMagnetSensing()` and `hasWatchDog()` are `true`.
+
+This is the right driver when:
+
+- the read loop is hot and the I2C round-trip would dominate it, **and**
+- you still want the magnet-quality / watchdog signals the chip exposes
+  only over I2C.
+
+```cpp
+#include <ungula/encoder/drivers/as5600_i2c_pwm.h>
+#include <ungula/hal/i2c/i2c_master.h>
+#include <ungula/hal/pwm_input/drivers/pwm_input.h>
+
+namespace enc = ungula::encoder;
+namespace pwm = ungula::hal::pwm_input;
+
+ungula::hal::i2c::I2cMaster bus(0);
+pwm::drivers::PwmInput cap;
+
+enc::drivers::As5600I2cPwm wheel("wheel", bus, cap,
+                                 /*multiplexer=*/nullptr,
+                                 /*channel=*/0,
+                                 /*directionPin=*/4);
+
+void setup() {
+    bus.begin(/*sda=*/21, /*scl=*/22, /*hz=*/400000);
+    cap.begin(/*pwmPin=*/34);
+
+    if (!wheel.begin()) {
+        // I2C side failed (chip missing / wiring fault). The PWM read
+        // path can still work in degraded mode if the chip is alive
+        // and the host accepts running without magnet diagnostics.
+    }
+    wheel.setCalibration(11.377f);
+}
+
+void loop() {
+    // Hot path — angle comes from the PWM pin, no I2C traffic.
+    const float deg = wheel.readAngle();
+
+    // Slow housekeeping — magnet check is still I2C.
+    if (wheel.magnetStatus() != enc::MagnetStatus::Ok) {
+        // log, alarm, recover, etc.
+    }
+}
+```
+
+The combined driver also accepts an optional `IMultiplexer*` and
+channel for I2C-side wiring, just like `As5600I2c` (the PWM input is
+its own pin and is unaffected).
 
 ## Multiplexer is optional (per driver)
 

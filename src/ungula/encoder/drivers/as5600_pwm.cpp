@@ -9,20 +9,26 @@
 
 #include "ungula/hal/gpio/gpio_access.h"
 
-namespace ungula::encoder::drivers {
+namespace ungula::encoder::drivers
+{
 
-    namespace {
+    namespace
+    {
         // Same effective resolution as the I2C transport. Imported here
         // (rather than from as5600_i2c.h) so the PWM driver does not
         // pull the I2C transport surface into headers it does not need.
         constexpr uint16_t kAs5600Resolution = 4096;
-    }  // namespace
+    } // namespace
 
-    As5600Pwm::As5600Pwm(const char* name, ungula::hal::pwm_input::IPwmInput& pwm,
-                         uint8_t directionPin)
-        : IEncoder("AS5600", name, kAs5600Resolution), pwm_(pwm), directionPin_(directionPin) {}
+    As5600Pwm::As5600Pwm(const char *name, ungula::hal::pwm_input::IPwmInput &pwm, uint8_t directionPin)
+            : IEncoder("AS5600", name, kAs5600Resolution)
+            , pwm_(pwm)
+            , directionPin_(directionPin)
+    {
+    }
 
-    bool As5600Pwm::begin() {
+    bool As5600Pwm::begin()
+    {
         isInitialized_ = true;
         if (directionPin_ != ENCODER_NO_DIRECTION_PIN) {
             ungula::hal::gpio::configOutput(directionPin_);
@@ -43,7 +49,8 @@ namespace ungula::encoder::drivers {
         return true;
     }
 
-    bool As5600Pwm::applyDirection(Direction direction) {
+    bool As5600Pwm::applyDirection(Direction direction)
+    {
         if (directionPin_ == ENCODER_NO_DIRECTION_PIN) {
             return true;
         }
@@ -51,7 +58,8 @@ namespace ungula::encoder::drivers {
         return true;
     }
 
-    bool As5600Pwm::isConnected() {
+    bool As5600Pwm::isConnected()
+    {
         // "Connected" through PWM == "we have a recent sample".
         if (!pwm_.hasSample()) {
             return false;
@@ -59,11 +67,13 @@ namespace ungula::encoder::drivers {
         return pwm_.sampleAgeUs() <= staleThresholdUs_;
     }
 
-    bool As5600Pwm::isFunctional() {
+    bool As5600Pwm::isFunctional()
+    {
         return readStatus() == Status::Ok;
     }
 
-    Status As5600Pwm::readStatus() {
+    Status As5600Pwm::readStatus()
+    {
         if (!isInitialized_) {
             setStatus(Error::NotInitialized);
             return Status::Error;
@@ -76,16 +86,16 @@ namespace ungula::encoder::drivers {
         return Status::Ok;
     }
 
-    uint16_t As5600Pwm::rawFromSample(uint32_t highUs, uint32_t periodUs) {
+    uint16_t As5600Pwm::rawFromSample(uint32_t highUs, uint32_t periodUs)
+    {
         if (periodUs == 0U || highUs > periodUs) {
             return 0xFFFFU;
         }
         // raw = round(high/period * frame_counts) - preamble
         // Done in 64-bit fixed-point to avoid float on the read path.
         const uint64_t scaled =
-                (static_cast<uint64_t>(highUs) * static_cast<uint64_t>(AS5600_PWM_FRAME_COUNTS) +
-                 (periodUs / 2U)) /
-                static_cast<uint64_t>(periodUs);
+            (static_cast<uint64_t>(highUs) * static_cast<uint64_t>(AS5600_PWM_FRAME_COUNTS) + (periodUs / 2U)) /
+            static_cast<uint64_t>(periodUs);
         if (scaled <= AS5600_PWM_PREAMBLE_COUNTS) {
             return 0;
         }
@@ -96,17 +106,20 @@ namespace ungula::encoder::drivers {
         return static_cast<uint16_t>(raw);
     }
 
-    void As5600Pwm::calibrateZero(uint16_t initial_position) {
+    void As5600Pwm::calibrateZero(uint16_t initial_position)
+    {
         zero_raw_position_ = initial_position;
         last_raw_position_ = initial_position;
         cumulative_position_ = 0;
     }
 
-    bool As5600Pwm::isCurrentDirectionReadingNegative() const {
+    bool As5600Pwm::isCurrentDirectionReadingNegative() const
+    {
         return direction_ == Direction::ClockWise;
     }
 
-    bool As5600Pwm::resetPosition(uint16_t initial_position) {
+    bool As5600Pwm::resetPosition(uint16_t initial_position)
+    {
         if (!isInitialized_) {
             setStatus(Error::NotInitialized);
             return false;
@@ -130,7 +143,8 @@ namespace ungula::encoder::drivers {
         return true;
     }
 
-    float As5600Pwm::readPosition() {
+    float As5600Pwm::readPosition()
+    {
         clearLastError();
         if (!isInitialized_) {
             setStatus(Error::NotInitialized);
@@ -140,6 +154,17 @@ namespace ungula::encoder::drivers {
             setStatus(Error::NotConnected);
             return NAN;
         }
+
+        // ISR-driven path: the cumulative count is maintained by
+        // `updatePositionFromIsr()` from the backend's per-period
+        // callback. `readPosition()` becomes a cheap snapshot read with
+        // no decoding — staleness is still validated above so callers
+        // get the same `NotConnected` diagnostic when the wire goes
+        // quiet.
+        if (isrUpdatesEnabled_) {
+            return static_cast<float>(cumulative_position_);
+        }
+
         const uint16_t current = rawFromSample(pwm_.lastHighTimeUs(), pwm_.lastPeriodUs());
         if (current == 0xFFFFU) {
             setStatus(Error::NotConnected);
@@ -168,11 +193,13 @@ namespace ungula::encoder::drivers {
         return static_cast<float>(cumulative_position_);
     }
 
-    float As5600Pwm::position() const {
+    float As5600Pwm::position() const
+    {
         return static_cast<float>(cumulative_position_);
     }
 
-    size_t As5600Pwm::formatLogPrefix(char* buf, size_t bufSize) const {
+    size_t As5600Pwm::formatLogPrefix(char *buf, size_t bufSize) const
+    {
         if (buf == nullptr || bufSize == 0) {
             return 0;
         }
@@ -180,4 +207,59 @@ namespace ungula::encoder::drivers {
         return (n < 0) ? 0 : static_cast<size_t>(n);
     }
 
-}  // namespace ungula::encoder::drivers
+    // ------------------------------------------------------------------
+    //  ISR-driven update path
+    // ------------------------------------------------------------------
+
+    UNGULA_ISR_ATTR void As5600Pwm::onPwmSampleIsr(void *ctx)
+    {
+        if (ctx == nullptr) {
+            return;
+        }
+        static_cast<As5600Pwm *>(ctx)->updatePositionFromIsr();
+    }
+
+    UNGULA_ISR_ATTR void As5600Pwm::updatePositionFromIsr()
+    {
+        // Same decode + wrap-around logic as `readPosition()`, but no
+        // floats, no `setStatus()` (would race with the host), no
+        // logging. Just cumulative-counter maintenance.
+        const uint16_t current = rawFromSample(pwm_.lastHighTimeUs(), pwm_.lastPeriodUs());
+        if (current == 0xFFFFU) {
+            return; // bad sample — wait for the next frame
+        }
+        if (!hasFirstSample_) {
+            zero_raw_position_ = current;
+            last_raw_position_ = current;
+            cumulative_position_ = 0;
+            hasFirstSample_ = true;
+            return;
+        }
+        if (current == last_raw_position_) {
+            return;
+        }
+        int diff = static_cast<int>(current) - static_cast<int>(last_raw_position_);
+        constexpr int half = static_cast<int>(kAs5600Resolution) / 2;
+        if (diff > half) {
+            diff -= static_cast<int>(kAs5600Resolution);
+        } else if (diff < -half) {
+            diff += static_cast<int>(kAs5600Resolution);
+        }
+        const int rotationFactor = isCurrentDirectionReadingNegative() ? -1 : 1;
+        cumulative_position_ += rotationFactor * diff;
+        last_raw_position_ = current;
+    }
+
+    void As5600Pwm::enableIsrUpdates()
+    {
+        pwm_.setSampleCallback(&As5600Pwm::onPwmSampleIsr, this);
+        isrUpdatesEnabled_ = true;
+    }
+
+    void As5600Pwm::disableIsrUpdates()
+    {
+        pwm_.setSampleCallback(nullptr, nullptr);
+        isrUpdatesEnabled_ = false;
+    }
+
+} // namespace ungula::encoder::drivers

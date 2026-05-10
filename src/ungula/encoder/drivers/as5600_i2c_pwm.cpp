@@ -6,21 +6,23 @@
 
 #include <math.h>
 
-namespace ungula::encoder::drivers {
+namespace ungula::encoder::drivers
+{
 
-    namespace {
+    namespace
+    {
         constexpr int kResolution = static_cast<int>(AS5600_RESOLUTION);
         // PWM frame constants come from `as5600_pwm.h` via the umbrella
         // include — `AS5600_PWM_FRAME_COUNTS`, `AS5600_PWM_PREAMBLE_COUNTS`.
 
-        uint16_t rawFromSample(uint32_t highUs, uint32_t periodUs) {
+        uint16_t rawFromSample(uint32_t highUs, uint32_t periodUs)
+        {
             if (periodUs == 0U || highUs > periodUs) {
                 return 0xFFFFU;
             }
-            const uint64_t scaled = (static_cast<uint64_t>(highUs) *
-                                             static_cast<uint64_t>(AS5600_PWM_FRAME_COUNTS) +
-                                     (periodUs / 2U)) /
-                                    static_cast<uint64_t>(periodUs);
+            const uint64_t scaled =
+                (static_cast<uint64_t>(highUs) * static_cast<uint64_t>(AS5600_PWM_FRAME_COUNTS) + (periodUs / 2U)) /
+                static_cast<uint64_t>(periodUs);
             if (scaled <= AS5600_PWM_PREAMBLE_COUNTS) {
                 return 0;
             }
@@ -30,15 +32,19 @@ namespace ungula::encoder::drivers {
             }
             return static_cast<uint16_t>(raw);
         }
-    }  // namespace
+    } // namespace
 
-    As5600I2cPwm::As5600I2cPwm(const char* name, ungula::hal::i2c::I2cMaster& bus,
-                               ungula::hal::pwm_input::IPwmInput& pwm,
-                               ungula::hal::multiplexer::IMultiplexer* multiplexer,
-                               uint8_t multiplexerChannel, uint8_t directionPin)
-        : As5600I2c(name, bus, multiplexer, multiplexerChannel, directionPin), pwm_(pwm) {}
+    As5600I2cPwm::As5600I2cPwm(const char *name, ungula::hal::i2c::I2cMaster &bus,
+                               ungula::hal::pwm_input::IPwmInput &pwm,
+                               ungula::hal::multiplexer::IMultiplexer *multiplexer, uint8_t multiplexerChannel,
+                               uint8_t directionPin)
+            : As5600I2c(name, bus, multiplexer, multiplexerChannel, directionPin)
+            , pwm_(pwm)
+    {
+    }
 
-    bool As5600I2cPwm::isConnected() {
+    bool As5600I2cPwm::isConnected()
+    {
         // Bus must ACK and the PWM input must carry a fresh frame.
         if (!As5600I2c::isConnected()) {
             return false;
@@ -49,11 +55,13 @@ namespace ungula::encoder::drivers {
         return true;
     }
 
-    uint16_t As5600I2cPwm::rawFromCurrentSample() const {
+    uint16_t As5600I2cPwm::rawFromCurrentSample() const
+    {
         return rawFromSample(pwm_.lastHighTimeUs(), pwm_.lastPeriodUs());
     }
 
-    float As5600I2cPwm::readPosition() {
+    float As5600I2cPwm::readPosition()
+    {
         clearLastError();
         if (!isInitialized_) {
             setStatus(Error::NotInitialized);
@@ -95,11 +103,13 @@ namespace ungula::encoder::drivers {
         return static_cast<float>(pwmCumulative_);
     }
 
-    float As5600I2cPwm::position() const {
+    float As5600I2cPwm::position() const
+    {
         return static_cast<float>(pwmCumulative_);
     }
 
-    bool As5600I2cPwm::resetPosition(uint16_t initial_position) {
+    bool As5600I2cPwm::resetPosition(uint16_t initial_position)
+    {
         if (!isInitialized_) {
             setStatus(Error::NotInitialized);
             return false;
@@ -125,4 +135,4 @@ namespace ungula::encoder::drivers {
         return true;
     }
 
-}  // namespace ungula::encoder::drivers
+} // namespace ungula::encoder::drivers

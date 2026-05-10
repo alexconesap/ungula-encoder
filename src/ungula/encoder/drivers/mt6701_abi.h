@@ -24,35 +24,36 @@
 /// in pure ABI mode. Use `As5600I2cPwm`-style composition (a future
 /// `Mt6701I2cAbi`) if both diagnostics and ABI fast reads are needed.
 
-namespace ungula::encoder::drivers {
+namespace ungula::encoder::drivers
+{
 
     /// Default counts per revolution after 4× quadrature decode.
     /// 1024 PPR × 4 edges = 4096.
     constexpr uint16_t MT6701_DEFAULT_RESOLUTION = 4096;
 
     class Mt6701Abi final : public IEncoder {
-        public:
-            /// @param name        Caller-chosen tag.
-            /// @param decoder     Already-begun quadrature decoder.
-            /// @param resolution  Counts per revolution after decoding.
-            ///                    Default: 4096 (1024 PPR × 4× decode).
-            Mt6701Abi(const char* name, ungula::hal::quadrature::IDecoder& decoder,
-                      uint16_t resolution = MT6701_DEFAULT_RESOLUTION);
+    public:
+        /// @param name        Caller-chosen tag.
+        /// @param decoder     Already-begun quadrature decoder.
+        /// @param resolution  Counts per revolution after decoding.
+        ///                    Default: 4096 (1024 PPR × 4× decode).
+        Mt6701Abi(const char *name, ungula::hal::quadrature::IDecoder &decoder,
+                  uint16_t resolution = MT6701_DEFAULT_RESOLUTION);
 
-            // ---- Driver contract ----
-            bool begin() override;
-            bool isFunctional() override;
-            bool isConnected() override;
+        // ---- Driver contract ----
+        bool begin() override;
+        bool isFunctional() override;
+        bool isConnected() override;
 
-            float readPosition() override;
-            float position() const override;
-            bool resetPosition(uint16_t initial_position) override;
-            Status readStatus() override;
+        float readPosition() override;
+        float position() const override;
+        bool resetPosition(uint16_t initial_position) override;
+        Status readStatus() override;
 
-        private:
-            ungula::hal::quadrature::IDecoder& decoder_;
-            int32_t lastReadCount_ = 0;
-            int signFactor_ = 1;
+    private:
+        ungula::hal::quadrature::IDecoder &decoder_;
+        int32_t lastReadCount_ = 0;
+        int signFactor_ = 1;
     };
 
-}  // namespace ungula::encoder::drivers
+} // namespace ungula::encoder::drivers

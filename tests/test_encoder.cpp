@@ -13,7 +13,8 @@
 #include <ungula/encoder/i_encoder.h>
 #include <ungula/hal/multiplexer/drivers/multiplexer_fake.h>
 
-namespace {
+namespace
+{
 
     using ungula::encoder::Direction;
     using ungula::encoder::Error;
@@ -32,9 +33,10 @@ namespace {
     // makes this file fail to compile.
     // ----------------------------------------------------------------------
 
-    TEST(IEncoderContract, FakeImplementsEveryPureVirtual) {
+    TEST(IEncoderContract, FakeImplementsEveryPureVirtual)
+    {
         EncoderFake fake;
-        IEncoder* api = static_cast<IEncoder*>(&fake);
+        IEncoder *api = static_cast<IEncoder *>(&fake);
         EXPECT_TRUE(api->begin());
         EXPECT_TRUE(api->isFunctional());
         EXPECT_TRUE(api->isConnected());
@@ -71,33 +73,44 @@ namespace {
     // defaults defined on `IEncoder` itself. ABI / optical drivers
     // inherit this shape.
     class MinimalFake final : public IEncoder {
-        public:
-            MinimalFake() : IEncoder("MIN", "min", 1024) {}
-            bool begin() override {
-                isInitialized_ = true;
-                return true;
-            }
-            bool isFunctional() override {
-                return true;
-            }
-            bool isConnected() override {
-                return true;
-            }
-            float readPosition() override {
-                return 0.0f;
-            }
-            float position() const override {
-                return 0.0f;
-            }
-            bool resetPosition(uint16_t) override {
-                return true;
-            }
-            Status readStatus() override {
-                return Status::Ok;
-            }
+    public:
+        MinimalFake()
+                : IEncoder("MIN", "min", 1024)
+        {
+        }
+        bool begin() override
+        {
+            isInitialized_ = true;
+            return true;
+        }
+        bool isFunctional() override
+        {
+            return true;
+        }
+        bool isConnected() override
+        {
+            return true;
+        }
+        float readPosition() override
+        {
+            return 0.0f;
+        }
+        float position() const override
+        {
+            return 0.0f;
+        }
+        bool resetPosition(uint16_t) override
+        {
+            return true;
+        }
+        Status readStatus() override
+        {
+            return Status::Ok;
+        }
     };
 
-    TEST(IEncoderCapabilities, DefaultsAreAllFalseAndSafe) {
+    TEST(IEncoderCapabilities, DefaultsAreAllFalseAndSafe)
+    {
         MinimalFake bare;
         EXPECT_FALSE(bare.hasMagnetSensing());
         EXPECT_FALSE(bare.hasWatchDog());
@@ -114,8 +127,9 @@ namespace {
         EXPECT_FALSE(bare.isWatchDogEnabled());
     }
 
-    TEST(IEncoderCapabilities, FakeOverridesAdvertiseSupport) {
-        EncoderFake fake;  // overrides hasMagnetSensing / hasWatchDog → true
+    TEST(IEncoderCapabilities, FakeOverridesAdvertiseSupport)
+    {
+        EncoderFake fake; // overrides hasMagnetSensing / hasWatchDog → true
         EXPECT_TRUE(fake.hasMagnetSensing());
         EXPECT_TRUE(fake.hasWatchDog());
     }
@@ -124,7 +138,8 @@ namespace {
     // Direction works before begin()
     // ----------------------------------------------------------------------
 
-    TEST(IEncoderDirection, SetBeforeBeginDoesNotPushToHardwareYet) {
+    TEST(IEncoderDirection, SetBeforeBeginDoesNotPushToHardwareYet)
+    {
         EncoderFake fake;
         // Pre-begin: setDirection updates the cached value but must NOT
         // call applyDirection (no hardware to talk to yet).
@@ -133,7 +148,8 @@ namespace {
         EXPECT_EQ(fake.applyDirectionCallCount(), 0U);
     }
 
-    TEST(IEncoderDirection, BeginAppliesPreBeginDirectionToHardware) {
+    TEST(IEncoderDirection, BeginAppliesPreBeginDirectionToHardware)
+    {
         EncoderFake fake;
         fake.setDirectionCounterClockWise();
         EXPECT_TRUE(fake.begin());
@@ -143,7 +159,8 @@ namespace {
         EXPECT_EQ(fake.lastAppliedDirection(), Direction::CounterClockWise);
     }
 
-    TEST(IEncoderDirection, SetAfterBeginPushesImmediately) {
+    TEST(IEncoderDirection, SetAfterBeginPushesImmediately)
+    {
         EncoderFake fake;
         fake.begin();
         const uint32_t baseline = fake.applyDirectionCallCount();
@@ -152,7 +169,8 @@ namespace {
         EXPECT_EQ(fake.lastAppliedDirection(), Direction::CounterClockWise);
     }
 
-    TEST(IEncoderDirection, RoundTripDirection) {
+    TEST(IEncoderDirection, RoundTripDirection)
+    {
         EncoderFake fake;
         EXPECT_TRUE(fake.setDirection(Direction::CounterClockWise));
         EXPECT_EQ(fake.getDirection(), Direction::CounterClockWise);
@@ -164,12 +182,14 @@ namespace {
     // I2C-backed driver multiplexer routing — through I2cEncoderFake
     // ----------------------------------------------------------------------
 
-    TEST(I2cEncoderFakeMux, DirectConnectReportsNoMultiplexer) {
-        I2cEncoderFake fake;  // no multiplexer
+    TEST(I2cEncoderFakeMux, DirectConnectReportsNoMultiplexer)
+    {
+        I2cEncoderFake fake; // no multiplexer
         EXPECT_FALSE(fake.hasMultiplexer());
     }
 
-    TEST(I2cEncoderFakeMux, ReadPositionSelectsTheConfiguredChannel) {
+    TEST(I2cEncoderFakeMux, ReadPositionSelectsTheConfiguredChannel)
+    {
         MultiplexerFake mux;
         mux.begin();
 
@@ -182,7 +202,8 @@ namespace {
         EXPECT_GE(mux.selectCallCount(), 1U);
     }
 
-    TEST(I2cEncoderFakeMux, MultiplexerFailurePropagatesAsError) {
+    TEST(I2cEncoderFakeMux, MultiplexerFailurePropagatesAsError)
+    {
         MultiplexerFake mux;
         mux.begin();
         mux.setSelectAlwaysFails(true);
@@ -198,7 +219,8 @@ namespace {
         EXPECT_EQ(fake.getLastError(), Error::MultiplexerError);
     }
 
-    TEST(I2cEncoderFakeMux, BackToBackReadsHitMuxOnceDueToCache) {
+    TEST(I2cEncoderFakeMux, BackToBackReadsHitMuxOnceDueToCache)
+    {
         MultiplexerFake mux;
         mux.begin();
 
@@ -215,7 +237,8 @@ namespace {
         EXPECT_EQ(mux.selectCallCount(), baseline);
     }
 
-    TEST(I2cEncoderFakeMux, ReadFailsWhenNotInitialised) {
+    TEST(I2cEncoderFakeMux, ReadFailsWhenNotInitialised)
+    {
         I2cEncoderFake fake;
         const float r = fake.readPosition();
         EXPECT_TRUE(std::isnan(r));
@@ -226,12 +249,14 @@ namespace {
     // Logging toggle
     // ----------------------------------------------------------------------
 
-    TEST(IEncoderLogging, DefaultsOff) {
+    TEST(IEncoderLogging, DefaultsOff)
+    {
         EncoderFake fake;
         EXPECT_FALSE(fake.isLoggingEnabled());
     }
 
-    TEST(IEncoderLogging, EnableDisableFlipsFlag) {
+    TEST(IEncoderLogging, EnableDisableFlipsFlag)
+    {
         EncoderFake fake;
         fake.enableLogging();
         EXPECT_TRUE(fake.isLoggingEnabled());
@@ -243,9 +268,10 @@ namespace {
     // Status / error mapping
     // ----------------------------------------------------------------------
 
-    TEST(IEncoderStatus, StatusToStrIncludesModelAndName) {
+    TEST(IEncoderStatus, StatusToStrIncludesModelAndName)
+    {
         EncoderFake fake("vertical");
-        const char* s = fake.statusToStr();
+        const char *s = fake.statusToStr();
         ASSERT_NE(s, nullptr);
         // Default IEncoder prefix is "[MODEL name] ..." — driver overrides
         // can add more (e.g. address + channel for I2C drivers).
@@ -253,18 +279,19 @@ namespace {
         EXPECT_NE(strstr(s, "vertical"), nullptr);
     }
 
-    TEST(IEncoderStatus, GetLastErrorAsStrCoversEveryEnumValue) {
+    TEST(IEncoderStatus, GetLastErrorAsStrCoversEveryEnumValue)
+    {
         EncoderFake fake;
         const Error allValues[] = {
-                Error::None,         Error::NotInitialized,   Error::BeginFailed,
-                Error::NotConnected, Error::MultiplexerError, Error::MagnetNotDetected,
-                Error::MagnetError,  Error::MagnetErrorHigh,  Error::MagnetErrorLow,
-                Error::I2CReadError, Error::I2CWriteError,
+            Error::None,         Error::NotInitialized,   Error::BeginFailed,
+            Error::NotConnected, Error::MultiplexerError, Error::MagnetNotDetected,
+            Error::MagnetError,  Error::MagnetErrorHigh,  Error::MagnetErrorLow,
+            Error::I2CReadError, Error::I2CWriteError,
         };
 
         for (Error e : allValues) {
             fake.public_setStatus(e);
-            const char* msg = fake.getLastErrorAsStr();
+            const char *msg = fake.getLastErrorAsStr();
             ASSERT_NE(msg, nullptr);
             EXPECT_GT(strlen(msg), 0U) << "missing message for enum " << static_cast<int>(e);
         }
@@ -274,20 +301,23 @@ namespace {
     // Calibration + angle helpers (unchanged surface)
     // ----------------------------------------------------------------------
 
-    TEST(IEncoderCalibration, DefaultsToUncalibrated) {
+    TEST(IEncoderCalibration, DefaultsToUncalibrated)
+    {
         EncoderFake fake;
         EXPECT_FALSE(fake.hasCalibration());
         EXPECT_FLOAT_EQ(fake.calibration(), 0.0f);
     }
 
-    TEST(IEncoderCalibration, SetCalibrationFlipsHasCalibrationAndIsReadable) {
+    TEST(IEncoderCalibration, SetCalibrationFlipsHasCalibrationAndIsReadable)
+    {
         EncoderFake fake;
         fake.setCalibration(11.377f);
         EXPECT_TRUE(fake.hasCalibration());
         EXPECT_FLOAT_EQ(fake.calibration(), 11.377f);
     }
 
-    TEST(IEncoderCalibration, ZeroCalibrationKeepsItUncalibrated) {
+    TEST(IEncoderCalibration, ZeroCalibrationKeepsItUncalibrated)
+    {
         EncoderFake fake;
         fake.setCalibration(5.0f);
         EXPECT_TRUE(fake.hasCalibration());
@@ -295,14 +325,16 @@ namespace {
         EXPECT_FALSE(fake.hasCalibration());
     }
 
-    TEST(IEncoderAngle, AngleFromPositionReturnsNanWithoutCalibration) {
+    TEST(IEncoderAngle, AngleFromPositionReturnsNanWithoutCalibration)
+    {
         EncoderFake fake;
         EXPECT_TRUE(std::isnan(fake.angleFromPosition(360)));
         EXPECT_TRUE(std::isnan(fake.angle()));
         EXPECT_TRUE(std::isnan(fake.readAngle()));
     }
 
-    TEST(IEncoderAngle, AngleFromPositionDividesByStoredCalibration) {
+    TEST(IEncoderAngle, AngleFromPositionDividesByStoredCalibration)
+    {
         EncoderFake fake;
         fake.setCalibration(1.0f);
         EXPECT_FLOAT_EQ(fake.angleFromPosition(0), 0.0f);
@@ -312,7 +344,8 @@ namespace {
         EXPECT_NEAR(fake.angleFromPosition(4093), 360.0f, 0.001f);
     }
 
-    TEST(IEncoderAngle, AngleTracksCachedPositionWithoutIo) {
+    TEST(IEncoderAngle, AngleTracksCachedPositionWithoutIo)
+    {
         EncoderFake fake;
         fake.setScriptedPosition(180.0f);
         fake.setCalibration(1.0f);
@@ -321,7 +354,8 @@ namespace {
         EXPECT_EQ(fake.readPositionCallCount(), before);
     }
 
-    TEST(IEncoderAngle, ReadAngleDrivesReadPositionAndConvertsToDegrees) {
+    TEST(IEncoderAngle, ReadAngleDrivesReadPositionAndConvertsToDegrees)
+    {
         EncoderFake fake;
         fake.begin();
         fake.setScriptedPosition(720.0f);
@@ -331,7 +365,8 @@ namespace {
         EXPECT_EQ(fake.readPositionCallCount(), before + 1U);
     }
 
-    TEST(IEncoderAngle, ReadAngleReturnsNanWhenReadPositionFails) {
+    TEST(IEncoderAngle, ReadAngleReturnsNanWhenReadPositionFails)
+    {
         EncoderFake fake;
         fake.setCalibration(1.0f);
         EXPECT_TRUE(std::isnan(fake.readAngle()));
@@ -341,7 +376,8 @@ namespace {
     // Reset
     // ----------------------------------------------------------------------
 
-    TEST(IEncoderReset, ResetCountsAndUpdatesPosition) {
+    TEST(IEncoderReset, ResetCountsAndUpdatesPosition)
+    {
         EncoderFake fake;
         fake.begin();
         EXPECT_TRUE(fake.resetPosition(123));
@@ -353,7 +389,8 @@ namespace {
     // Magnet status
     // ----------------------------------------------------------------------
 
-    TEST(IEncoderMagnet, MagnetStatusFlowsToBoolHelpers) {
+    TEST(IEncoderMagnet, MagnetStatusFlowsToBoolHelpers)
+    {
         EncoderFake fake;
         fake.setMagnetStatus(MagnetStatus::Ok);
         EXPECT_TRUE(fake.isMagnetFound());
@@ -371,4 +408,4 @@ namespace {
         EXPECT_FALSE(fake.isMagnetFound());
     }
 
-}  // namespace
+} // namespace

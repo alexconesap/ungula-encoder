@@ -6,12 +6,17 @@
 
 #include <math.h>
 
-namespace ungula::encoder::drivers {
+namespace ungula::encoder::drivers
+{
 
-    Ma730Spi::Ma730Spi(const char* name, ungula::hal::spi::SpiMaster& spi)
-        : IEncoder("MA730", name, MA730_RESOLUTION), spi_(spi) {}
+    Ma730Spi::Ma730Spi(const char *name, ungula::hal::spi::SpiMaster &spi)
+            : IEncoder("MA730", name, MA730_RESOLUTION)
+            , spi_(spi)
+    {
+    }
 
-    bool Ma730Spi::begin() {
+    bool Ma730Spi::begin()
+    {
         isInitialized_ = true;
         applyDirection(direction_);
         const uint16_t raw = readRawAngle();
@@ -23,12 +28,13 @@ namespace ungula::encoder::drivers {
         return true;
     }
 
-    uint16_t Ma730Spi::readRawAngle() {
+    uint16_t Ma730Spi::readRawAngle()
+    {
         // The MA730 returns the 14-bit angle left-aligned in a 16-bit
         // frame. Send anything (NOPs) — the chip ignores MOSI in this
         // mode.
-        const uint8_t tx[2] = {0, 0};
-        uint8_t rx[2] = {0, 0};
+        const uint8_t tx[2] = { 0, 0 };
+        uint8_t rx[2] = { 0, 0 };
         if (!spi_.transfer(tx, rx, sizeof(tx))) {
             last_error_ = Error::I2CReadError;
             return 0;
@@ -38,16 +44,19 @@ namespace ungula::encoder::drivers {
         return static_cast<uint16_t>(resp >> 2);
     }
 
-    bool Ma730Spi::isConnected() {
+    bool Ma730Spi::isConnected()
+    {
         (void)readRawAngle();
         return getLastError() == Error::None;
     }
 
-    bool Ma730Spi::isFunctional() {
+    bool Ma730Spi::isFunctional()
+    {
         return readStatus() == Status::Ok;
     }
 
-    Status Ma730Spi::readStatus() {
+    Status Ma730Spi::readStatus()
+    {
         if (!isInitialized_) {
             setStatus(Error::NotInitialized);
             return Status::Error;
@@ -59,13 +68,15 @@ namespace ungula::encoder::drivers {
         return Status::Ok;
     }
 
-    void Ma730Spi::calibrateZero(uint16_t initial_position) {
+    void Ma730Spi::calibrateZero(uint16_t initial_position)
+    {
         zero_raw_position_ = initial_position;
         last_raw_position_ = initial_position;
         cumulative_position_ = 0;
     }
 
-    bool Ma730Spi::resetPosition(uint16_t initial_position) {
+    bool Ma730Spi::resetPosition(uint16_t initial_position)
+    {
         if (!isInitialized_) {
             setStatus(Error::NotInitialized);
             return false;
@@ -83,7 +94,8 @@ namespace ungula::encoder::drivers {
         return true;
     }
 
-    float Ma730Spi::readPosition() {
+    float Ma730Spi::readPosition()
+    {
         clearLastError();
         if (!isInitialized_) {
             setStatus(Error::NotInitialized);
@@ -114,8 +126,9 @@ namespace ungula::encoder::drivers {
         return static_cast<float>(cumulative_position_);
     }
 
-    float Ma730Spi::position() const {
+    float Ma730Spi::position() const
+    {
         return static_cast<float>(cumulative_position_);
     }
 
-}  // namespace ungula::encoder::drivers
+} // namespace ungula::encoder::drivers

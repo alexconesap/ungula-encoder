@@ -21,114 +21,130 @@
 /// Tests can use `MultiplexerFake` from `lib_hal` to observe the
 /// channel-select traffic and inject failures.
 
-namespace ungula::encoder::drivers {
+namespace ungula::encoder::drivers
+{
 
     constexpr int I2C_FAKE_DEFAULT_RESOLUTION = 4096;
 
     class I2cEncoderFake final : public IEncoder {
-        public:
-            I2cEncoderFake(const char* name = "fake-i2c",
-                           ungula::hal::multiplexer::IMultiplexer* multiplexer = nullptr,
-                           uint8_t multiplexerChannel = 0,
-                           int resolution = I2C_FAKE_DEFAULT_RESOLUTION)
-                : IEncoder("FAKE_I2C", name, resolution),
-                  multiplexer_(multiplexer),
-                  multiplexerChannel_(multiplexerChannel) {}
+    public:
+        I2cEncoderFake(const char *name = "fake-i2c", ungula::hal::multiplexer::IMultiplexer *multiplexer = nullptr,
+                       uint8_t multiplexerChannel = 0, int resolution = I2C_FAKE_DEFAULT_RESOLUTION)
+                : IEncoder("FAKE_I2C", name, resolution)
+                , multiplexer_(multiplexer)
+                , multiplexerChannel_(multiplexerChannel)
+        {
+        }
 
-            bool hasMagnetSensing() const override {
-                return true;
-            }
+        bool hasMagnetSensing() const override
+        {
+            return true;
+        }
 
-            // ---- Driver contract ----
+        // ---- Driver contract ----
 
-            bool begin() override {
-                isInitialized_ = true;
-                if (multiplexer_ != nullptr && !multiplexer_->selectChannel(multiplexerChannel_)) {
-                    setInitializationStatus(Error::MultiplexerError);
-                    return false;
-                }
-                applyDirection(direction_);
-                return true;
+        bool begin() override
+        {
+            isInitialized_ = true;
+            if (multiplexer_ != nullptr && !multiplexer_->selectChannel(multiplexerChannel_)) {
+                setInitializationStatus(Error::MultiplexerError);
+                return false;
             }
+            applyDirection(direction_);
+            return true;
+        }
 
-            bool isFunctional() override {
-                return true;
-            }
-            bool isConnected() override {
-                return true;
-            }
+        bool isFunctional() override
+        {
+            return true;
+        }
+        bool isConnected() override
+        {
+            return true;
+        }
 
-            float readPosition() override {
-                if (!selectMux()) {
-                    return NAN;
-                }
-                return scriptedPosition_;
+        float readPosition() override
+        {
+            if (!selectMux()) {
+                return NAN;
             }
+            return scriptedPosition_;
+        }
 
-            float position() const override {
-                return scriptedPosition_;
-            }
+        float position() const override
+        {
+            return scriptedPosition_;
+        }
 
-            bool resetPosition(uint16_t initial_position) override {
-                if (!selectMux()) {
-                    return false;
-                }
-                scriptedPosition_ = static_cast<float>(initial_position);
-                return true;
+        bool resetPosition(uint16_t initial_position) override
+        {
+            if (!selectMux()) {
+                return false;
             }
+            scriptedPosition_ = static_cast<float>(initial_position);
+            return true;
+        }
 
-            Status readStatus() override {
-                return Status::Ok;
-            }
+        Status readStatus() override
+        {
+            return Status::Ok;
+        }
 
-            // ---- Test knobs / inspectors ----
+        // ---- Test knobs / inspectors ----
 
-            void setScriptedPosition(float p) {
-                scriptedPosition_ = p;
-            }
-            uint8_t multiplexerChannel() const {
-                return multiplexerChannel_;
-            }
-            bool hasMultiplexer() const {
-                return multiplexer_ != nullptr;
-            }
-            uint32_t applyDirectionCallCount() const {
-                return applyDirectionCallCount_;
-            }
-            Direction lastAppliedDirection() const {
-                return lastAppliedDirection_;
-            }
+        void setScriptedPosition(float p)
+        {
+            scriptedPosition_ = p;
+        }
+        uint8_t multiplexerChannel() const
+        {
+            return multiplexerChannel_;
+        }
+        bool hasMultiplexer() const
+        {
+            return multiplexer_ != nullptr;
+        }
+        uint32_t applyDirectionCallCount() const
+        {
+            return applyDirectionCallCount_;
+        }
+        Direction lastAppliedDirection() const
+        {
+            return lastAppliedDirection_;
+        }
 
-        protected:
-            bool applyDirection(Direction direction) override {
-                ++applyDirectionCallCount_;
-                lastAppliedDirection_ = direction;
-                return true;
-            }
+    protected:
+        bool applyDirection(Direction direction) override
+        {
+            ++applyDirectionCallCount_;
+            lastAppliedDirection_ = direction;
+            return true;
+        }
 
-        private:
-            bool selectMux() {
-                if (!isInitialized_) {
-                    setStatus(Error::NotInitialized);
-                    return false;
-                }
-                if (multiplexer_ == nullptr) {
-                    clearLastError();
-                    return true;
-                }
-                if (!multiplexer_->selectChannel(multiplexerChannel_)) {
-                    setStatus(Error::MultiplexerError);
-                    return false;
-                }
+    private:
+        bool selectMux()
+        {
+            if (!isInitialized_) {
+                setStatus(Error::NotInitialized);
+                return false;
+            }
+            if (multiplexer_ == nullptr) {
                 clearLastError();
                 return true;
             }
+            if (!multiplexer_->selectChannel(multiplexerChannel_)) {
+                setStatus(Error::MultiplexerError);
+                return false;
+            }
+            clearLastError();
+            return true;
+        }
 
-            ungula::hal::multiplexer::IMultiplexer* multiplexer_;
-            uint8_t multiplexerChannel_;
-            float scriptedPosition_ = 0.0f;
-            uint32_t applyDirectionCallCount_ = 0;
-            Direction lastAppliedDirection_ = Direction::ClockWise;
+        ungula::hal::multiplexer::IMultiplexer *multiplexer_;
+        uint8_t multiplexerChannel_;
+        float scriptedPosition_ = 0.0f;
+        uint32_t applyDirectionCallCount_ = 0;
+        Direction lastAppliedDirection_ = Direction::ClockWise;
     };
 
-}  // namespace ungula::encoder::drivers
+} // namespace ungula::encoder::drivers

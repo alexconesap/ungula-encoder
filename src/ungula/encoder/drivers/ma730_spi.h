@@ -20,33 +20,34 @@
 /// MGT/MGL bit pair is exposed via the field-strength register), so this
 /// driver leaves the `IEncoder` magnet defaults in place.
 
-namespace ungula::encoder::drivers {
+namespace ungula::encoder::drivers
+{
 
     constexpr uint16_t MA730_RESOLUTION = 16384;
 
     class Ma730Spi final : public IEncoder {
-        public:
-            Ma730Spi(const char* name, ungula::hal::spi::SpiMaster& spi);
+    public:
+        Ma730Spi(const char *name, ungula::hal::spi::SpiMaster &spi);
 
-            bool begin() override;
-            bool isFunctional() override;
-            bool isConnected() override;
+        bool begin() override;
+        bool isFunctional() override;
+        bool isConnected() override;
 
-            float readPosition() override;
-            float position() const override;
-            bool resetPosition(uint16_t initial_position) override;
-            Status readStatus() override;
+        float readPosition() override;
+        float position() const override;
+        bool resetPosition(uint16_t initial_position) override;
+        Status readStatus() override;
 
-        private:
-            uint16_t readRawAngle();
-            void calibrateZero(uint16_t initial_position);
+    private:
+        uint16_t readRawAngle();
+        void calibrateZero(uint16_t initial_position);
 
-            ungula::hal::spi::SpiMaster& spi_;
+        ungula::hal::spi::SpiMaster &spi_;
 
-            uint16_t zero_raw_position_ = 0;
-            uint16_t last_raw_position_ = 0;
-            int cumulative_position_ = 0;
-            bool hasFirstSample_ = false;
+        uint16_t zero_raw_position_ = 0;
+        uint16_t last_raw_position_ = 0;
+        int cumulative_position_ = 0;
+        bool hasFirstSample_ = false;
     };
 
-}  // namespace ungula::encoder::drivers
+} // namespace ungula::encoder::drivers

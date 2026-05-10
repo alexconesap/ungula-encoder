@@ -19,48 +19,50 @@
 /// Magnet status is reported through the chip's DIAAGC register (0x3FFC).
 /// Watchdog is not a feature of this chip.
 
-namespace ungula::encoder::drivers {
+namespace ungula::encoder::drivers
+{
 
     constexpr uint16_t AS5047P_RESOLUTION = 16384;
 
     class As5047pSpi final : public IEncoder {
-        public:
-            /// @param name  Caller-chosen tag.
-            /// @param spi   Already-begun SPI master (one device = one CS).
-            As5047pSpi(const char* name, ungula::hal::spi::SpiMaster& spi);
+    public:
+        /// @param name  Caller-chosen tag.
+        /// @param spi   Already-begun SPI master (one device = one CS).
+        As5047pSpi(const char *name, ungula::hal::spi::SpiMaster &spi);
 
-            bool hasMagnetSensing() const override {
-                return true;
-            }
+        bool hasMagnetSensing() const override
+        {
+            return true;
+        }
 
-            // ---- Driver contract ----
-            bool begin() override;
-            bool isFunctional() override;
-            bool isConnected() override;
+        // ---- Driver contract ----
+        bool begin() override;
+        bool isFunctional() override;
+        bool isConnected() override;
 
-            float readPosition() override;
-            float position() const override;
-            bool resetPosition(uint16_t initial_position) override;
-            Status readStatus() override;
+        float readPosition() override;
+        float position() const override;
+        bool resetPosition(uint16_t initial_position) override;
+        Status readStatus() override;
 
-            // ---- Magnet ----
-            MagnetStatus magnetStatus() override;
-            bool isMagnetFound() override;
-            bool isMagnetTooStrong() override;
-            bool isMagnetTooWeak() override;
+        // ---- Magnet ----
+        MagnetStatus magnetStatus() override;
+        bool isMagnetFound() override;
+        bool isMagnetTooStrong() override;
+        bool isMagnetTooWeak() override;
 
-        private:
-            // Read a 14-bit register. Sets `last_error_` on failure.
-            uint16_t readRegister(uint16_t address);
+    private:
+        // Read a 14-bit register. Sets `last_error_` on failure.
+        uint16_t readRegister(uint16_t address);
 
-            void calibrateZero(uint16_t initial_position);
+        void calibrateZero(uint16_t initial_position);
 
-            ungula::hal::spi::SpiMaster& spi_;
+        ungula::hal::spi::SpiMaster &spi_;
 
-            uint16_t zero_raw_position_ = 0;
-            uint16_t last_raw_position_ = 0;
-            int cumulative_position_ = 0;
-            bool hasFirstSample_ = false;
+        uint16_t zero_raw_position_ = 0;
+        uint16_t last_raw_position_ = 0;
+        int cumulative_position_ = 0;
+        bool hasFirstSample_ = false;
     };
 
-}  // namespace ungula::encoder::drivers
+} // namespace ungula::encoder::drivers

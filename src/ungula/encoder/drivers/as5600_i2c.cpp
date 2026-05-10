@@ -10,9 +10,11 @@
 #include "ungula/core/time/time_control.h"
 #include "ungula/hal/gpio/gpio_access.h"
 
-namespace ungula::encoder::drivers {
+namespace ungula::encoder::drivers
+{
 
-    namespace {
+    namespace
+    {
 
         constexpr uint16_t MASK_12_BITS = 0x0FFF;
 
@@ -22,12 +24,12 @@ namespace ungula::encoder::drivers {
         constexpr uint8_t REG_RAW_ANGLE = 0x0C;
 
         // STATUS register bits.
-        constexpr uint8_t STATUS_BIT_MAGNET_HIGH = 0x08;   // bit 3 — too strong
-        constexpr uint8_t STATUS_BIT_MAGNET_LOW = 0x10;    // bit 4 — too weak
-        constexpr uint8_t STATUS_BIT_MAGNET_FOUND = 0x20;  // bit 5
+        constexpr uint8_t STATUS_BIT_MAGNET_HIGH = 0x08; // bit 3 — too strong
+        constexpr uint8_t STATUS_BIT_MAGNET_LOW = 0x10; // bit 4 — too weak
+        constexpr uint8_t STATUS_BIT_MAGNET_FOUND = 0x20; // bit 5
 
         // CONFIGURATION register: WD bit toggles the 1.6 s watchdog.
-        constexpr uint16_t CFG_WATCHDOG_MASK = 0x2000;  // bit 13
+        constexpr uint16_t CFG_WATCHDOG_MASK = 0x2000; // bit 13
         constexpr uint8_t CFG_WATCHDOG_BIT = 13;
 
         // I2C pacing: between consecutive 16-bit reads the chip needs a
@@ -36,9 +38,10 @@ namespace ungula::encoder::drivers {
         constexpr int64_t READ_PREP_US = 50;
         constexpr int64_t READ_INTERBYTE_US = 25;
 
-    }  // namespace
+    } // namespace
 
-    bool As5600I2c::selectMux() {
+    bool As5600I2c::selectMux()
+    {
         if (!isInitialized_) {
             // Programmer error — caller forgot begin(). Surface as a
             // hard error rather than silently moving on.
@@ -59,7 +62,8 @@ namespace ungula::encoder::drivers {
         return true;
     }
 
-    bool As5600I2c::begin() {
+    bool As5600I2c::begin()
+    {
         // Mark initialised before the probe so subsequent failures
         // surface as the actual error (BeginFailed / MultiplexerError)
         // rather than the generic NotInitialized.
@@ -88,23 +92,27 @@ namespace ungula::encoder::drivers {
         return true;
     }
 
-    bool As5600I2c::applyDirection(Direction direction) {
+    bool As5600I2c::applyDirection(Direction direction)
+    {
         if (directionPin_ == ENCODER_NO_DIRECTION_PIN) {
-            return true;  // no DIR pin wired — logical-only
+            return true; // no DIR pin wired — logical-only
         }
         ungula::hal::gpio::write(directionPin_, direction == Direction::ClockWise);
         return true;
     }
 
-    bool As5600I2c::isConnected() {
+    bool As5600I2c::isConnected()
+    {
         return bus_.write(address_, nullptr, 0);
     }
 
-    bool As5600I2c::isFunctional() {
+    bool As5600I2c::isFunctional()
+    {
         return readStatus() == Status::Ok;
     }
 
-    Status As5600I2c::readStatus() {
+    Status As5600I2c::readStatus()
+    {
         if (status_ == Status::InitializationError) {
             return Status::InitializationError;
         }
@@ -121,16 +129,18 @@ namespace ungula::encoder::drivers {
         return Status::Ok;
     }
 
-    uint8_t As5600I2c::readStatusRegister() {
+    uint8_t As5600I2c::readStatusRegister()
+    {
         return readRegister8b(REG_STATUS);
     }
 
-    bool As5600I2c::writeRegister16b(uint8_t reg, uint16_t value, uint8_t maxRetries) {
+    bool As5600I2c::writeRegister16b(uint8_t reg, uint16_t value, uint8_t maxRetries)
+    {
         clearLastError();
         const uint8_t buf[3] = {
-                reg,
-                static_cast<uint8_t>((value >> 8) & 0xFF),
-                static_cast<uint8_t>(value & 0xFF),
+            reg,
+            static_cast<uint8_t>((value >> 8) & 0xFF),
+            static_cast<uint8_t>(value & 0xFF),
         };
         for (uint8_t attempt = 0; attempt < maxRetries; ++attempt) {
             if (bus_.write(address_, buf, sizeof(buf))) {
@@ -141,9 +151,10 @@ namespace ungula::encoder::drivers {
         return false;
     }
 
-    uint16_t As5600I2c::readRegister16b(uint8_t reg, uint8_t maxRetries) {
+    uint16_t As5600I2c::readRegister16b(uint8_t reg, uint8_t maxRetries)
+    {
         clearLastError();
-        uint8_t out[2] = {0, 0};
+        uint8_t out[2] = { 0, 0 };
         for (uint8_t attempt = 0; attempt < maxRetries; ++attempt) {
             ungula::core::time::delayUs(READ_PREP_US);
             if (bus_.writeRead(address_, &reg, 1, out, sizeof(out))) {
@@ -156,7 +167,8 @@ namespace ungula::encoder::drivers {
         return 0;
     }
 
-    uint8_t As5600I2c::readRegister8b(uint8_t reg, uint8_t maxRetries) {
+    uint8_t As5600I2c::readRegister8b(uint8_t reg, uint8_t maxRetries)
+    {
         clearLastError();
         uint8_t out = 0;
         for (uint8_t attempt = 0; attempt < maxRetries; ++attempt) {
@@ -169,17 +181,21 @@ namespace ungula::encoder::drivers {
         return 0;
     }
 
-    bool As5600I2c::isMagnetFound() {
+    bool As5600I2c::isMagnetFound()
+    {
         return magnetStatus() != MagnetStatus::NotFound;
     }
-    bool As5600I2c::isMagnetTooStrong() {
+    bool As5600I2c::isMagnetTooStrong()
+    {
         return magnetStatus() == MagnetStatus::TooHigh;
     }
-    bool As5600I2c::isMagnetTooWeak() {
+    bool As5600I2c::isMagnetTooWeak()
+    {
         return magnetStatus() == MagnetStatus::TooLow;
     }
 
-    MagnetStatus As5600I2c::magnetStatus() {
+    MagnetStatus As5600I2c::magnetStatus()
+    {
         if (!selectMux()) {
             return MagnetStatus::EncoderError;
         }
@@ -199,7 +215,8 @@ namespace ungula::encoder::drivers {
         return MagnetStatus::Ok;
     }
 
-    bool As5600I2c::setWatchDog(bool enabled) {
+    bool As5600I2c::setWatchDog(bool enabled)
+    {
         if (!selectMux()) {
             return false;
         }
@@ -214,7 +231,8 @@ namespace ungula::encoder::drivers {
         return writeRegister16b(REG_CONFIGURATION, cfg);
     }
 
-    bool As5600I2c::isWatchDogEnabled() {
+    bool As5600I2c::isWatchDogEnabled()
+    {
         if (!selectMux()) {
             return false;
         }
@@ -225,14 +243,16 @@ namespace ungula::encoder::drivers {
         return ((cfg >> CFG_WATCHDOG_BIT) & 0x01U) != 0;
     }
 
-    bool As5600I2c::isCurrentDirectionReadingNegative() const {
+    bool As5600I2c::isCurrentDirectionReadingNegative() const
+    {
         // Hardware quirk on the original Rachel rig: clockwise rotation
         // returns decrementing raw values when DIR is grounded. Keeping
         // the rule explicit here so future drivers can override.
         return direction_ == Direction::ClockWise;
     }
 
-    bool As5600I2c::resetPosition(uint16_t initial_position) {
+    bool As5600I2c::resetPosition(uint16_t initial_position)
+    {
         if (!selectMux()) {
             return false;
         }
@@ -240,19 +260,22 @@ namespace ungula::encoder::drivers {
         return true;
     }
 
-    uint16_t As5600I2c::rawAngle() {
+    uint16_t As5600I2c::rawAngle()
+    {
         return static_cast<uint16_t>(readRegister16b(REG_RAW_ANGLE) & MASK_12_BITS);
     }
 
     /// @brief Capture the current raw angle as the new zero (or use a
     /// persisted value when restoring after reboot).
-    void As5600I2c::calibrateZero(uint16_t initial_position) {
+    void As5600I2c::calibrateZero(uint16_t initial_position)
+    {
         zero_raw_position_ = (initial_position == 0) ? rawAngle() : initial_position;
         last_raw_position_ = zero_raw_position_;
         cumulative_position_ = static_cast<int>(initial_position);
     }
 
-    float As5600I2c::readPosition() {
+    float As5600I2c::readPosition()
+    {
         clearLastError();
         if (!selectMux()) {
             return NAN;
@@ -284,29 +307,32 @@ namespace ungula::encoder::drivers {
         return static_cast<float>(cumulative_position_);
     }
 
-    float As5600I2c::position() const {
+    float As5600I2c::position() const
+    {
         // Cached cumulative position — no I/O. Updated on every successful
         // `readPosition()`. The base class's `angle()` divides this by the
         // stored calibration to produce degrees.
         return static_cast<float>(cumulative_position_);
     }
 
-    size_t As5600I2c::formatLogPrefix(char* buf, size_t bufSize) const {
+    size_t As5600I2c::formatLogPrefix(char *buf, size_t bufSize) const
+    {
         if (buf == nullptr || bufSize == 0) {
             return 0;
         }
         // Driver override that includes the I2C address and the
         // currently-selected mux channel — handy when several encoders
         // share a bus and the log line needs to identify which one.
-        const int n = snprintf(buf, bufSize, "[%s %s @0x%02X:%u]", getModel(), getName(), address_,
-                               multiplexerChannel_);
+        const int n =
+            snprintf(buf, bufSize, "[%s %s @0x%02X:%u]", getModel(), getName(), address_, multiplexerChannel_);
         return (n < 0) ? 0 : static_cast<size_t>(n);
     }
 
-    void As5600I2c::logPosition(uint16_t current_raw_position, int diff_raw) {
+    void As5600I2c::logPosition(uint16_t current_raw_position, int diff_raw)
+    {
         const uint8_t channel = multiplexer_ != nullptr ? multiplexer_->getCurrentChannel() : 0xFF;
-        logDebugf("ch=%u zero=%u cur=%u last=%u diff=%d cum=%d", channel, zero_raw_position_,
-                  current_raw_position, last_raw_position_, diff_raw, cumulative_position_);
+        logDebugf("ch=%u zero=%u cur=%u last=%u diff=%d cum=%d", channel, zero_raw_position_, current_raw_position,
+                  last_raw_position_, diff_raw, cumulative_position_);
     }
 
-}  // namespace ungula::encoder::drivers
+} // namespace ungula::encoder::drivers
