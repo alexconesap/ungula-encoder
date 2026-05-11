@@ -188,7 +188,7 @@ namespace ungula::encoder::drivers
             diff += static_cast<int>(kAs5600Resolution);
         }
         const int rotationFactor = isCurrentDirectionReadingNegative() ? -1 : 1;
-        cumulative_position_ += rotationFactor * diff;
+        cumulative_position_ = cumulative_position_ + (rotationFactor * diff);
         last_raw_position_ = current;
         return static_cast<float>(cumulative_position_);
     }
@@ -246,7 +246,7 @@ namespace ungula::encoder::drivers
             diff += static_cast<int>(kAs5600Resolution);
         }
         const int rotationFactor = isCurrentDirectionReadingNegative() ? -1 : 1;
-        cumulative_position_ += rotationFactor * diff;
+        cumulative_position_ = cumulative_position_ + (rotationFactor * diff);
         last_raw_position_ = current;
     }
 

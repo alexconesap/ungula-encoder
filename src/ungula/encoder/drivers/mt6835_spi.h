@@ -30,7 +30,7 @@
 namespace ungula::encoder::drivers
 {
 
-    constexpr uint32_t MT6835_RESOLUTION = 2 '097' 152U; // 2^21
+    constexpr uint32_t MT6835_RESOLUTION = 2'097'152U; // 2^21
 
     class Mt6835Spi final : public IEncoder {
     public:
