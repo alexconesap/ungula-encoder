@@ -7,7 +7,7 @@
 #include <math.h>
 #include <stdio.h>
 
-#include "ungula/core/time/time_control.h"
+#include "ungula/core/time/time.h"
 #include "ungula/hal/gpio/gpio_access.h"
 
 namespace ungula::encoder::drivers
