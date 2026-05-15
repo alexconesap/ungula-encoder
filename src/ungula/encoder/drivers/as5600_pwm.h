@@ -37,10 +37,10 @@
 namespace ungula::encoder::drivers
 {
 
-    constexpr uint16_t AS5600_PWM_FRAME_COUNTS = 4351; // datasheet
-    constexpr uint16_t AS5600_PWM_PREAMBLE_COUNTS = 128;
+constexpr uint16_t AS5600_PWM_FRAME_COUNTS = 4351; // datasheet
+constexpr uint16_t AS5600_PWM_PREAMBLE_COUNTS = 128;
 
-    class As5600Pwm final : public IEncoder {
+class As5600Pwm final : public IEncoder {
     public:
         /// @param name           Caller-chosen tag, e.g. "vertical".
         /// @param pwm            Already-begun PWM input. Borrowed.
@@ -62,7 +62,7 @@ namespace ungula::encoder::drivers
 
         uint8_t directionPin() const
         {
-            return directionPin_;
+                return directionPin_;
         }
 
         /// @brief Stale-signal threshold. If the last edge is older
@@ -71,11 +71,11 @@ namespace ungula::encoder::drivers
         ///        slowest 115 Hz mode).
         void setStaleThresholdUs(uint32_t us)
         {
-            staleThresholdUs_ = us;
+                staleThresholdUs_ = us;
         }
         uint32_t staleThresholdUs() const
         {
-            return staleThresholdUs_;
+                return staleThresholdUs_;
         }
 
         // ---- ISR-driven update path ------------------------------------
@@ -109,7 +109,7 @@ namespace ungula::encoder::drivers
         /// @brief True when the ISR callback is currently armed.
         bool isIsrUpdatesEnabled() const
         {
-            return isrUpdatesEnabled_;
+                return isrUpdatesEnabled_;
         }
 
     protected:
@@ -139,7 +139,7 @@ namespace ungula::encoder::drivers
 
         uint32_t staleThresholdUs_ = 50'000;
 
-            uint16_t zero_raw_position_ = 0;
+        uint16_t zero_raw_position_ = 0;
         uint16_t last_raw_position_ = 0;
         // Volatile because the ISR-mode path writes these from
         // interrupt context while the host task may concurrently
@@ -148,6 +148,6 @@ namespace ungula::encoder::drivers
         volatile int cumulative_position_ = 0;
         volatile bool hasFirstSample_ = false;
         bool isrUpdatesEnabled_ = false;
-    };
+};
 
 } // namespace ungula::encoder::drivers

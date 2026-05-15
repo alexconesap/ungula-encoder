@@ -31,10 +31,10 @@
 namespace ungula::encoder::drivers
 {
 
-    constexpr uint8_t AS5600_DEFAULT_ADDRESS = 0x36;
-    constexpr uint16_t AS5600_RESOLUTION = 4096;
+constexpr uint8_t AS5600_DEFAULT_ADDRESS = 0x36;
+constexpr uint16_t AS5600_RESOLUTION = 4096;
 
-    class As5600I2c : public IEncoder {
+class As5600I2c : public IEncoder {
     public:
         /// @param name              Caller-chosen tag, e.g. "vertical".
         /// @param bus               I2C bus the encoder lives on. Borrowed.
@@ -45,8 +45,8 @@ namespace ungula::encoder::drivers
         /// @param directionPin      MCU pin wired to the chip's DIR
         ///                          input, or `ENCODER_NO_DIRECTION_PIN`.
         As5600I2c(const char *name, ungula::hal::i2c::I2cMaster &bus,
-                  ungula::hal::multiplexer::IMultiplexer *multiplexer = nullptr, uint8_t multiplexerChannel = 0,
-                  uint8_t directionPin = ENCODER_NO_DIRECTION_PIN)
+                  ungula::hal::multiplexer::IMultiplexer *multiplexer = nullptr,
+                  uint8_t multiplexerChannel = 0, uint8_t directionPin = ENCODER_NO_DIRECTION_PIN)
                 : IEncoder("AS5600", name, AS5600_RESOLUTION)
                 , bus_(bus)
                 , multiplexer_(multiplexer)
@@ -59,11 +59,11 @@ namespace ungula::encoder::drivers
 
         bool hasMagnetSensing() const override
         {
-            return true;
+                return true;
         }
         bool hasWatchDog() const override
         {
-            return true;
+                return true;
         }
 
         // ---- Driver contract ----
@@ -91,15 +91,15 @@ namespace ungula::encoder::drivers
         // ---- Inspectors (driver-private state, useful for tests + logs)
         uint8_t address() const
         {
-            return address_;
+                return address_;
         }
         uint8_t multiplexerChannel() const
         {
-            return multiplexerChannel_;
+                return multiplexerChannel_;
         }
         bool hasMultiplexer() const
         {
-            return multiplexer_ != nullptr;
+                return multiplexer_ != nullptr;
         }
 
     protected:
@@ -133,6 +133,6 @@ namespace ungula::encoder::drivers
         bool isCurrentDirectionReadingNegative() const;
 
         void logPosition(uint16_t current_raw_position, int diff_raw);
-    };
+};
 
 } // namespace ungula::encoder::drivers

@@ -27,9 +27,9 @@
 namespace ungula::encoder::drivers
 {
 
-    constexpr int FAKE_DEFAULT_RESOLUTION = 4096;
+constexpr int FAKE_DEFAULT_RESOLUTION = 4096;
 
-    class EncoderFake final : public IEncoder {
+class EncoderFake final : public IEncoder {
     public:
         EncoderFake(const char *name = "fake", int resolution = FAKE_DEFAULT_RESOLUTION)
                 : IEncoder("FAKE", name, resolution)
@@ -45,159 +45,159 @@ namespace ungula::encoder::drivers
 
         bool hasMagnetSensing() const override
         {
-            return true;
+                return true;
         }
         bool hasWatchDog() const override
         {
-            return true;
+                return true;
         }
 
         // ---- Driver contract ----
 
         bool begin() override
         {
-            ++beginCallCount_;
-            isInitialized_ = true;
-            if (!beginResult_) {
-                setInitializationStatus(Error::BeginFailed);
-                return false;
-            }
-            // Apply whatever direction was set before begin() — same
-            // contract every real driver follows.
-            applyDirection(direction_);
-            return true;
+                ++beginCallCount_;
+                isInitialized_ = true;
+                if (!beginResult_) {
+                        setInitializationStatus(Error::BeginFailed);
+                        return false;
+                }
+                // Apply whatever direction was set before begin() — same
+                // contract every real driver follows.
+                applyDirection(direction_);
+                return true;
         }
 
         bool isFunctional() override
         {
-            ++isFunctionalCallCount_;
-            return isFunctionalResult_;
+                ++isFunctionalCallCount_;
+                return isFunctionalResult_;
         }
 
         bool isConnected() override
         {
-            ++isConnectedCallCount_;
-            return isConnectedResult_;
+                ++isConnectedCallCount_;
+                return isConnectedResult_;
         }
 
         float readPosition() override
         {
-            ++readPositionCallCount_;
-            if (!isInitialized_) {
-                setStatus(Error::NotInitialized);
-                return NAN;
-            }
-            return scriptedPosition_;
+                ++readPositionCallCount_;
+                if (!isInitialized_) {
+                        setStatus(Error::NotInitialized);
+                        return NAN;
+                }
+                return scriptedPosition_;
         }
 
         float position() const override
         {
-            return scriptedPosition_;
+                return scriptedPosition_;
         }
 
         bool resetPosition(uint16_t initial_position) override
         {
-            ++resetCallCount_;
-            scriptedPosition_ = static_cast<float>(initial_position);
-            return true;
+                ++resetCallCount_;
+                scriptedPosition_ = static_cast<float>(initial_position);
+                return true;
         }
 
         Status readStatus() override
         {
-            ++readStatusCallCount_;
-            return scriptedStatus_;
+                ++readStatusCallCount_;
+                return scriptedStatus_;
         }
 
         bool isMagnetFound() override
         {
-            return magnetStatus_ != MagnetStatus::NotFound;
+                return magnetStatus_ != MagnetStatus::NotFound;
         }
         bool isMagnetTooStrong() override
         {
-            return magnetStatus_ == MagnetStatus::TooHigh;
+                return magnetStatus_ == MagnetStatus::TooHigh;
         }
         bool isMagnetTooWeak() override
         {
-            return magnetStatus_ == MagnetStatus::TooLow;
+                return magnetStatus_ == MagnetStatus::TooLow;
         }
         MagnetStatus magnetStatus() override
         {
-            return magnetStatus_;
+                return magnetStatus_;
         }
 
         bool setWatchDog(bool enabled) override
         {
-            watchDogEnabled_ = enabled;
-            return true;
+                watchDogEnabled_ = enabled;
+                return true;
         }
         bool isWatchDogEnabled() override
         {
-            return watchDogEnabled_;
+                return watchDogEnabled_;
         }
 
         // Making the accessors public so tests can script error
         // conditions without subclassing.
         void public_setStatus(Error error)
         {
-            setStatus(error);
+                setStatus(error);
         }
         void public_setInitializationStatus(Error error)
         {
-            setInitializationStatus(error);
+                setInitializationStatus(error);
         }
 
         // ---- Test knobs ----
 
         void setBeginResult(bool ok)
         {
-            beginResult_ = ok;
+                beginResult_ = ok;
         }
         void setIsConnected(bool ok)
         {
-            isConnectedResult_ = ok;
+                isConnectedResult_ = ok;
         }
         void setIsFunctional(bool ok)
         {
-            isFunctionalResult_ = ok;
+                isFunctionalResult_ = ok;
         }
         void setScriptedPosition(float position)
         {
-            scriptedPosition_ = position;
+                scriptedPosition_ = position;
         }
         void setScriptedStatus(Status status)
         {
-            scriptedStatus_ = status;
+                scriptedStatus_ = status;
         }
         void setMagnetStatus(MagnetStatus s)
         {
-            magnetStatus_ = s;
+                magnetStatus_ = s;
         }
 
         // ---- Inspectors ----
 
         uint32_t beginCallCount() const
         {
-            return beginCallCount_;
+                return beginCallCount_;
         }
         uint32_t readPositionCallCount() const
         {
-            return readPositionCallCount_;
+                return readPositionCallCount_;
         }
         uint32_t readStatusCallCount() const
         {
-            return readStatusCallCount_;
+                return readStatusCallCount_;
         }
         uint32_t resetCallCount() const
         {
-            return resetCallCount_;
+                return resetCallCount_;
         }
         uint32_t isConnectedCallCount() const
         {
-            return isConnectedCallCount_;
+                return isConnectedCallCount_;
         }
         uint32_t isFunctionalCallCount() const
         {
-            return isFunctionalCallCount_;
+                return isFunctionalCallCount_;
         }
 
         // Direction-pin spy: every applyDirection() call records the
@@ -205,19 +205,19 @@ namespace ungula::encoder::drivers
         // direction settings reach hardware once `begin()` runs.
         uint32_t applyDirectionCallCount() const
         {
-            return applyDirectionCallCount_;
+                return applyDirectionCallCount_;
         }
         Direction lastAppliedDirection() const
         {
-            return lastAppliedDirection_;
+                return lastAppliedDirection_;
         }
 
     protected:
         bool applyDirection(Direction direction) override
         {
-            ++applyDirectionCallCount_;
-            lastAppliedDirection_ = direction;
-            return true;
+                ++applyDirectionCallCount_;
+                lastAppliedDirection_ = direction;
+                return true;
         }
 
     private:
@@ -238,6 +238,6 @@ namespace ungula::encoder::drivers
 
         uint32_t applyDirectionCallCount_ = 0;
         Direction lastAppliedDirection_ = Direction::ClockWise;
-    };
+};
 
 } // namespace ungula::encoder::drivers

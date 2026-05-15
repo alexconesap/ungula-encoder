@@ -22,9 +22,9 @@
 namespace ungula::encoder::drivers
 {
 
-    constexpr uint16_t AS5047P_RESOLUTION = 16384;
+constexpr uint16_t AS5047P_RESOLUTION = 16384;
 
-    class As5047pSpi final : public IEncoder {
+class As5047pSpi final : public IEncoder {
     public:
         /// @param name  Caller-chosen tag.
         /// @param spi   Already-begun SPI master (one device = one CS).
@@ -32,7 +32,7 @@ namespace ungula::encoder::drivers
 
         bool hasMagnetSensing() const override
         {
-            return true;
+                return true;
         }
 
         // ---- Driver contract ----
@@ -63,6 +63,6 @@ namespace ungula::encoder::drivers
         uint16_t last_raw_position_ = 0;
         int cumulative_position_ = 0;
         bool hasFirstSample_ = false;
-    };
+};
 
 } // namespace ungula::encoder::drivers

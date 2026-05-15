@@ -30,15 +30,15 @@
 namespace ungula::encoder::drivers
 {
 
-    constexpr uint32_t MT6835_RESOLUTION = 2'097'152U; // 2^21
+constexpr uint32_t MT6835_RESOLUTION = 2'097'152U; // 2^21
 
-    class Mt6835Spi final : public IEncoder {
+class Mt6835Spi final : public IEncoder {
     public:
         Mt6835Spi(const char *name, ungula::hal::spi::SpiMaster &spi);
 
         bool hasMagnetSensing() const override
         {
-            return true;
+                return true;
         }
 
         bool begin() override;
@@ -69,6 +69,6 @@ namespace ungula::encoder::drivers
         int64_t cumulative_position_ = 0;
         bool hasFirstSample_ = false;
         uint8_t lastStatus_ = 0;
-    };
+};
 
 } // namespace ungula::encoder::drivers

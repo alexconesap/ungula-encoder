@@ -27,7 +27,7 @@
 namespace ungula::encoder::drivers
 {
 
-    class As5600I2cPwm final : public As5600I2c {
+class As5600I2cPwm final : public As5600I2c {
     public:
         /// @param name              Caller-chosen tag.
         /// @param bus               I2C bus the encoder lives on.
@@ -36,8 +36,10 @@ namespace ungula::encoder::drivers
         /// @param multiplexerChannel Channel on the mux. Ignored when
         ///                          no multiplexer was passed.
         /// @param directionPin      Optional DIR pin.
-        As5600I2cPwm(const char *name, ungula::hal::i2c::I2cMaster &bus, ungula::hal::pwm_input::IPwmInput &pwm,
-                     ungula::hal::multiplexer::IMultiplexer *multiplexer = nullptr, uint8_t multiplexerChannel = 0,
+        As5600I2cPwm(const char *name, ungula::hal::i2c::I2cMaster &bus,
+                     ungula::hal::pwm_input::IPwmInput &pwm,
+                     ungula::hal::multiplexer::IMultiplexer *multiplexer = nullptr,
+                     uint8_t multiplexerChannel = 0,
                      uint8_t directionPin = ENCODER_NO_DIRECTION_PIN);
 
         // ---- Read path uses PWM ----
@@ -53,11 +55,11 @@ namespace ungula::encoder::drivers
 
         void setStaleThresholdUs(uint32_t us)
         {
-            staleThresholdUs_ = us;
+                staleThresholdUs_ = us;
         }
         uint32_t staleThresholdUs() const
         {
-            return staleThresholdUs_;
+                return staleThresholdUs_;
         }
 
     private:
@@ -67,10 +69,10 @@ namespace ungula::encoder::drivers
 
         uint32_t staleThresholdUs_ = 50'000;
 
-            uint16_t pwmZeroRaw_ = 0;
+        uint16_t pwmZeroRaw_ = 0;
         uint16_t pwmLastRaw_ = 0;
         int pwmCumulative_ = 0;
         bool hasFirstPwmSample_ = false;
-    };
+};
 
 } // namespace ungula::encoder::drivers

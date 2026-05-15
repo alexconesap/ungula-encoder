@@ -42,31 +42,31 @@
 namespace ungula::encoder
 {
 
-    /// @brief Sentinel for "no DIR pin wired" on encoders that expose one
-    /// (e.g. AS5600). Drivers that don't have a DIR pin ignore this.
-    constexpr uint8_t ENCODER_NO_DIRECTION_PIN = 255;
+/// @brief Sentinel for "no DIR pin wired" on encoders that expose one
+/// (e.g. AS5600). Drivers that don't have a DIR pin ignore this.
+constexpr uint8_t ENCODER_NO_DIRECTION_PIN = 255;
 
-    enum class Direction : uint8_t {
+enum class Direction : uint8_t {
         None = 0,
         ClockWise,
         CounterClockWise,
-    };
+};
 
-    enum class MagnetStatus : uint8_t {
+enum class MagnetStatus : uint8_t {
         Ok = 0,
         TooHigh,
         TooLow,
         NotFound,
         EncoderError,
-    };
+};
 
-    enum class Status : uint8_t {
+enum class Status : uint8_t {
         Ok = 0,
         InitializationError = 1,
         Error = 2,
-    };
+};
 
-    enum class Error : uint8_t {
+enum class Error : uint8_t {
         None = 0,
         NotInitialized = 1,
         BeginFailed = 2,
@@ -78,10 +78,10 @@ namespace ungula::encoder
         MagnetErrorLow = 8,
         I2CReadError = 9,
         I2CWriteError = 10,
-    };
+};
 
-    /// @brief Abstract base for all encoders.
-    class IEncoder {
+/// @brief Abstract base for all encoders.
+class IEncoder {
     public:
         /// @param model      Short label, e.g. "AS5600". Borrowed.
         /// @param name       Caller-chosen tag, e.g. "vertical". Borrowed.
@@ -105,21 +105,21 @@ namespace ungula::encoder
 
         const char *getName() const
         {
-            return name_;
+                return name_;
         }
         const char *getModel() const
         {
-            return model_;
+                return model_;
         }
 
         Error getLastError() const
         {
-            return last_error_;
+                return last_error_;
         }
         const char *getLastErrorAsStr() const;
         void clearLastError()
         {
-            setStatus(Error::None);
+                setStatus(Error::None);
         }
         const char *statusToStr() const;
 
@@ -134,15 +134,15 @@ namespace ungula::encoder
 
         void setCalibration(float steps_per_degree)
         {
-            steps_per_degree_ = steps_per_degree;
+                steps_per_degree_ = steps_per_degree;
         }
         float calibration() const
         {
-            return steps_per_degree_;
+                return steps_per_degree_;
         }
         bool hasCalibration() const
         {
-            return steps_per_degree_ > 0.0f;
+                return steps_per_degree_ > 0.0f;
         }
 
         // ---- Direction (works before begin()) --------------------------
@@ -156,23 +156,23 @@ namespace ungula::encoder
 
         bool setDirection(Direction direction)
         {
-            direction_ = direction;
-            if (isInitialized_) {
-                return applyDirection(direction);
-            }
-            return true;
+                direction_ = direction;
+                if (isInitialized_) {
+                        return applyDirection(direction);
+                }
+                return true;
         }
         Direction getDirection() const
         {
-            return direction_;
+                return direction_;
         }
         bool setDirectionClockWise()
         {
-            return setDirection(Direction::ClockWise);
+                return setDirection(Direction::ClockWise);
         }
         bool setDirectionCounterClockWise()
         {
-            return setDirection(Direction::CounterClockWise);
+                return setDirection(Direction::CounterClockWise);
         }
 
         // ---- Driver contract ----
@@ -214,7 +214,7 @@ namespace ungula::encoder
         /// once at construction (chip property).
         int getResolution() const
         {
-            return resolution_;
+                return resolution_;
         }
 
         /// @brief Re-read the encoder and refresh internal status.
@@ -229,63 +229,63 @@ namespace ungula::encoder
 
         virtual bool hasMagnetSensing() const
         {
-            return false;
+                return false;
         }
         virtual MagnetStatus magnetStatus()
         {
-            return MagnetStatus::Ok;
+                return MagnetStatus::Ok;
         }
         virtual bool isMagnetFound()
         {
-            return true;
+                return true;
         }
         virtual bool isMagnetTooStrong()
         {
-            return false;
+                return false;
         }
         virtual bool isMagnetTooWeak()
         {
-            return false;
+                return false;
         }
 
         virtual bool hasWatchDog() const
         {
-            return false;
+                return false;
         }
         virtual bool setWatchDog(bool /*enabled*/)
         {
-            return false;
+                return false;
         }
         virtual bool isWatchDogEnabled()
         {
-            return false;
+                return false;
         }
 
         // ---- Optional logging (off by default) ----
 
         void enableLogging()
         {
-            loggingEnabled_ = true;
+                loggingEnabled_ = true;
         }
         void disableLogging()
         {
-            loggingEnabled_ = false;
+                loggingEnabled_ = false;
         }
         bool isLoggingEnabled() const
         {
-            return loggingEnabled_;
+                return loggingEnabled_;
         }
 
     protected:
         void setStatus(Error error)
         {
-            last_error_ = error;
-            status_ = (error == Error::None) ? Status::Ok : Status::Error;
+                last_error_ = error;
+                status_ = (error == Error::None) ? Status::Ok : Status::Error;
         }
         void setInitializationStatus(Error error)
         {
-            last_error_ = error;
-            status_ = (error == Error::None) ? Status::Ok : Status::InitializationError;
+                last_error_ = error;
+                status_ = (error == Error::None) ? Status::Ok : Status::InitializationError;
         }
 
         /// @brief Push the logical direction to hardware. Drivers
@@ -294,7 +294,7 @@ namespace ungula::encoder
         /// from the driver's own `begin()` after the pin is up.
         virtual bool applyDirection(Direction /*direction*/)
         {
-            return true;
+                return true;
         }
 
         /// @brief EmblogX module tag used by every log line emitted
@@ -303,7 +303,7 @@ namespace ungula::encoder
 
         bool shouldLog() const
         {
-            return loggingEnabled_;
+                return loggingEnabled_;
         }
 
         /// @brief Per-instance log helpers. Each prepends the prefix
@@ -339,6 +339,6 @@ namespace ungula::encoder
 
     private:
         bool loggingEnabled_ = false;
-    };
+};
 
 } // namespace ungula::encoder

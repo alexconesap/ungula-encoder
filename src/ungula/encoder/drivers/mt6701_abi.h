@@ -27,11 +27,11 @@
 namespace ungula::encoder::drivers
 {
 
-    /// Default counts per revolution after 4× quadrature decode.
-    /// 1024 PPR × 4 edges = 4096.
-    constexpr uint16_t MT6701_DEFAULT_RESOLUTION = 4096;
+/// Default counts per revolution after 4× quadrature decode.
+/// 1024 PPR × 4 edges = 4096.
+constexpr uint16_t MT6701_DEFAULT_RESOLUTION = 4096;
 
-    class Mt6701Abi final : public IEncoder {
+class Mt6701Abi final : public IEncoder {
     public:
         /// @param name        Caller-chosen tag.
         /// @param decoder     Already-begun quadrature decoder.
@@ -54,6 +54,6 @@ namespace ungula::encoder::drivers
         ungula::hal::quadrature::IDecoder &decoder_;
         int32_t lastReadCount_ = 0;
         int signFactor_ = 1;
-    };
+};
 
 } // namespace ungula::encoder::drivers

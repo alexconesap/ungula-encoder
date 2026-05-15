@@ -23,9 +23,9 @@
 namespace ungula::encoder::drivers
 {
 
-    constexpr uint16_t MA730_RESOLUTION = 16384;
+constexpr uint16_t MA730_RESOLUTION = 16384;
 
-    class Ma730Spi final : public IEncoder {
+class Ma730Spi final : public IEncoder {
     public:
         Ma730Spi(const char *name, ungula::hal::spi::SpiMaster &spi);
 
@@ -48,6 +48,6 @@ namespace ungula::encoder::drivers
         uint16_t last_raw_position_ = 0;
         int cumulative_position_ = 0;
         bool hasFirstSample_ = false;
-    };
+};
 
 } // namespace ungula::encoder::drivers

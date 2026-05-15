@@ -15,64 +15,66 @@
 namespace
 {
 
-    using ungula::encoder::IEncoder;
-    using ungula::encoder::drivers::As5600I2cPwm;
-    using ungula::encoder::drivers::As5600Pwm;
-    using ungula::hal::i2c::I2cMaster;
-    using ungula::hal::pwm_input::drivers::PwmInputFake;
+using ungula::encoder::IEncoder;
+using ungula::encoder::drivers::As5600I2cPwm;
+using ungula::encoder::drivers::As5600Pwm;
+using ungula::hal::i2c::I2cMaster;
+using ungula::hal::pwm_input::drivers::PwmInputFake;
 
-    // For an AS5600 frame of 4351 chip clocks with a 128-clock preamble,
-    // the helper resolves angle samples like this regardless of the
-    // physical clock rate. Pick `period_us` arbitrarily; the ratio is
-    // what matters. Use 8700 us for a ~115 Hz frame.
-    //
-    // For raw_angle = R, the high time fraction is (128 + R) / 4351, so
-    // `highUs = round(periodUs * (128 + R) / 4351)`.
-    constexpr uint32_t kPeriodUs = 8'700; constexpr uint32_t highForRaw(uint16_t raw)
-    {
-        return static_cast<uint32_t>((static_cast<uint64_t>(kPeriodUs) * (128U + raw) + (4351U / 2U)) / 4351U);
-    }
+// For an AS5600 frame of 4351 chip clocks with a 128-clock preamble,
+// the helper resolves angle samples like this regardless of the
+// physical clock rate. Pick `period_us` arbitrarily; the ratio is
+// what matters. Use 8700 us for a ~115 Hz frame.
+//
+// For raw_angle = R, the high time fraction is (128 + R) / 4351, so
+// `highUs = round(periodUs * (128 + R) / 4351)`.
+constexpr uint32_t kPeriodUs = 8'700;
+constexpr uint32_t highForRaw(uint16_t raw)
+{
+        return static_cast<uint32_t>(
+            (static_cast<uint64_t>(kPeriodUs) * (128U + raw) + (4351U / 2U)) / 4351U);
+}
 
-    // ============================================================
-    //  As5600Pwm
-    // ============================================================
+// ============================================================
+//  As5600Pwm
+// ============================================================
 
-    TEST(As5600Pwm, IsAValidIEncoder)
-    {
+TEST(As5600Pwm, IsAValidIEncoder)
+{
         PwmInputFake pwm;
         pwm.begin(34);
         As5600Pwm enc("vertical", pwm);
         IEncoder *api = static_cast<IEncoder *>(&enc);
         EXPECT_NE(api, nullptr);
-    }
+}
 
-    TEST(As5600Pwm, ResolutionIs4096)
-    {
+TEST(As5600Pwm, ResolutionIs4096)
+{
         PwmInputFake pwm;
         As5600Pwm enc("vertical", pwm);
         EXPECT_EQ(enc.getResolution(), 4096);
-    }
+}
 
-    TEST(As5600Pwm, BeginSucceedsEvenWithoutSample)
-    {
+TEST(As5600Pwm, BeginSucceedsEvenWithoutSample)
+{
         PwmInputFake pwm;
         pwm.begin(34);
         As5600Pwm enc("vertical", pwm);
         EXPECT_TRUE(enc.begin());
-    }
+}
 
-    TEST(As5600Pwm, ReadPositionWithoutSampleReportsNotConnected)
-    {
+TEST(As5600Pwm, ReadPositionWithoutSampleReportsNotConnected)
+{
         PwmInputFake pwm;
         pwm.begin(34);
         As5600Pwm enc("vertical", pwm);
         enc.begin();
         EXPECT_TRUE(std::isnan(enc.readPosition()));
         EXPECT_EQ(enc.getLastError(), ungula::encoder::Error::NotConnected);
-    }
+}
 
-    TEST(As5600Pwm, FirstSampleZeroesOutPosition)
-    {
+TEST(As5600Pwm, FirstSampleZeroesOutPosition)
+{
         PwmInputFake pwm;
         pwm.begin(34);
         As5600Pwm enc("vertical", pwm);
@@ -82,10 +84,10 @@ namespace
         const float p = enc.readPosition();
         EXPECT_FALSE(std::isnan(p));
         EXPECT_NEAR(p, 0.0f, 0.001f);
-    }
+}
 
-    TEST(As5600Pwm, AngleAccumulatesAcrossFrames)
-    {
+TEST(As5600Pwm, AngleAccumulatesAcrossFrames)
+{
         PwmInputFake pwm;
         pwm.begin(34);
         As5600Pwm enc("vertical", pwm);
@@ -98,10 +100,10 @@ namespace
         EXPECT_NEAR(enc.readPosition(), 500.0f, 2.0f);
         pwm.injectSample(highForRaw(2'000), kPeriodUs);
         EXPECT_NEAR(enc.readPosition(), 1'000.0f, 2.0f);
-    }
+}
 
-    TEST(As5600Pwm, WrapAroundIsHandledCorrectly)
-    {
+TEST(As5600Pwm, WrapAroundIsHandledCorrectly)
+{
         PwmInputFake pwm;
         pwm.begin(34);
         As5600Pwm enc("vertical", pwm);
@@ -115,10 +117,10 @@ namespace
         const float p = enc.readPosition();
         // Diff should be +36 (4096 - 4080 + 20), not -4060.
         EXPECT_NEAR(p, 36.0f, 2.0f);
-    }
+}
 
-    TEST(As5600Pwm, StaleSampleSurfacesAsNotConnected)
-    {
+TEST(As5600Pwm, StaleSampleSurfacesAsNotConnected)
+{
         PwmInputFake pwm;
         pwm.begin(34);
         As5600Pwm enc("vertical", pwm);
@@ -129,18 +131,18 @@ namespace
         pwm.setSampleAgeUs(100'000);
         EXPECT_TRUE(std::isnan(enc.readPosition()));
         EXPECT_EQ(enc.getLastError(), ungula::encoder::Error::NotConnected);
-    }
+}
 
-    TEST(As5600Pwm, CapabilitiesDefaultFalse)
-    {
+TEST(As5600Pwm, CapabilitiesDefaultFalse)
+{
         PwmInputFake pwm;
         As5600Pwm enc("vertical", pwm);
         EXPECT_FALSE(enc.hasMagnetSensing());
         EXPECT_FALSE(enc.hasWatchDog());
-    }
+}
 
-    TEST(As5600Pwm, DirectionSetBeforeBeginIsHonoured)
-    {
+TEST(As5600Pwm, DirectionSetBeforeBeginIsHonoured)
+{
         PwmInputFake pwm;
         pwm.begin(34);
         As5600Pwm enc("vertical", pwm);
@@ -148,10 +150,10 @@ namespace
         EXPECT_EQ(enc.getDirection(), ungula::encoder::Direction::CounterClockWise);
         enc.begin();
         EXPECT_EQ(enc.getDirection(), ungula::encoder::Direction::CounterClockWise);
-    }
+}
 
-    TEST(As5600Pwm, IsrUpdatesAccumulateWithoutPolling)
-    {
+TEST(As5600Pwm, IsrUpdatesAccumulateWithoutPolling)
+{
         PwmInputFake pwm;
         pwm.begin(34);
         As5600Pwm enc("vertical", pwm);
@@ -164,7 +166,7 @@ namespace
         // The encoder's callback runs the wrap-around math, so
         // `position()` reflects the latest cumulative count without any
         // host-side polling between frames.
-        pwm.triggerSample(highForRaw(1'000), kPeriodUs);  // first sample → calibrates zero
+        pwm.triggerSample(highForRaw(1'000), kPeriodUs); // first sample → calibrates zero
         EXPECT_FLOAT_EQ(enc.position(), 0.0f);
 
         pwm.triggerSample(highForRaw(1'500), kPeriodUs);
@@ -176,10 +178,10 @@ namespace
         // `readPosition()` in ISR mode is just a snapshot read — no
         // decode, but the staleness gate still runs.
         EXPECT_NEAR(enc.readPosition(), 1'000.0f, 2.0f);
-    }
+}
 
-    TEST(As5600Pwm, IsrPathHandlesWrapAround)
-    {
+TEST(As5600Pwm, IsrPathHandlesWrapAround)
+{
         PwmInputFake pwm;
         pwm.begin(34);
         As5600Pwm enc("vertical", pwm);
@@ -190,17 +192,17 @@ namespace
         pwm.triggerSample(highForRaw(4'080), kPeriodUs);
         pwm.triggerSample(highForRaw(20), kPeriodUs);
         EXPECT_NEAR(enc.position(), 36.0f, 2.0f);
-    }
+}
 
-    TEST(As5600Pwm, DisableIsrUpdatesFallsBackToPolling)
-    {
+TEST(As5600Pwm, DisableIsrUpdatesFallsBackToPolling)
+{
         PwmInputFake pwm;
         pwm.begin(34);
         As5600Pwm enc("vertical", pwm);
         enc.setDirectionCounterClockWise();
         enc.begin();
         enc.enableIsrUpdates();
-        pwm.triggerSample(highForRaw(1'000), kPeriodUs);  // calibrate zero
+        pwm.triggerSample(highForRaw(1'000), kPeriodUs); // calibrate zero
         pwm.triggerSample(highForRaw(1'500), kPeriodUs);
         EXPECT_NEAR(enc.position(), 500.0f, 2.0f);
 
@@ -213,14 +215,14 @@ namespace
         EXPECT_NEAR(enc.position(), 500.0f, 2.0f);
         // Polling resumes the count, picking up where the ISR left off.
         EXPECT_NEAR(enc.readPosition(), 1'000.0f, 2.0f);
-    }
+}
 
-    // ============================================================
-    //  As5600I2cPwm
-    // ============================================================
+// ============================================================
+//  As5600I2cPwm
+// ============================================================
 
-    TEST(As5600I2cPwm, IsAValidIEncoderAndAs5600I2c)
-    {
+TEST(As5600I2cPwm, IsAValidIEncoderAndAs5600I2c)
+{
         I2cMaster bus(0);
         PwmInputFake pwm;
         pwm.begin(34);
@@ -229,10 +231,10 @@ namespace
         EXPECT_NE(api, nullptr);
         EXPECT_TRUE(enc.hasMagnetSensing()); // inherited override
         EXPECT_TRUE(enc.hasWatchDog());
-    }
+}
 
-    TEST(As5600I2cPwm, ReadPositionUsesPwmAndIgnoresI2cBus)
-    {
+TEST(As5600I2cPwm, ReadPositionUsesPwmAndIgnoresI2cBus)
+{
         // Bus stub never ACKs; if readPosition was going through I2C it
         // would return NaN. Going through PWM, the sample drives it.
         I2cMaster bus(0);
@@ -254,10 +256,10 @@ namespace
         // PWM; but isInitialized_ is set inside the parent's begin(). The
         // base sets it before probing, and our override does not reset it.
         EXPECT_FALSE(std::isnan(enc.readPosition()));
-    }
+}
 
-    TEST(As5600I2cPwm, ReadFailsWithoutSample)
-    {
+TEST(As5600I2cPwm, ReadFailsWithoutSample)
+{
         I2cMaster bus(0);
         PwmInputFake pwm;
         pwm.begin(34);
@@ -265,6 +267,6 @@ namespace
         (void)enc.begin();
         EXPECT_TRUE(std::isnan(enc.readPosition()));
         EXPECT_EQ(enc.getLastError(), ungula::encoder::Error::NotConnected);
-    }
+}
 
 } // namespace
