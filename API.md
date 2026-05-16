@@ -12,6 +12,30 @@ with a `IMultiplexer*` (multiplexed deployment).
 
 ---
 
+## LLM quick map
+
+- **Primary include**: `#include <ungula/encoder.h>`.
+- **Arduino discovery include**: `#include <ungula_encoder.h>` (forwarder only; host code should keep using the real header).
+- **Namespace root**: `ungula::encoder`.
+- **Language baseline**: C++17 minimum (examples avoid post-C++17 requirements).
+- **Supported architectures**: `esp32,esp32-s3`.
+- **Read order for coding agents**: `Usage` (working patterns) -> `API` (symbols/signatures) -> `Lifecycle`/`Error handling`/`Threading` notes in this file.
+
+### Use-case index
+
+- [Use case: direct-connect AS5600 over I2C](#use-case-direct-connect-as5600-over-i2c)
+- [Use case: two AS5600s behind a TCA9548A](#use-case-two-as5600s-behind-a-tca9548a)
+- [Use case: per-instance debugging](#use-case-per-instance-debugging)
+- [Use case: persisted zero across reboots](#use-case-persisted-zero-across-reboots)
+
+### LLM rules
+
+- Use only symbols and include paths documented in this file; do not infer extra public API from implementation files.
+- Prefer the use-case patterns here over ad-hoc rewrites; keep dependency wiring and lifecycle order identical unless the task explicitly changes API design.
+- Treat headers under `detail/`, `platform/`, and `platforms/` as internal unless this document calls them out as public.
+- If required behavior is missing from the documented API, report the gap explicitly instead of inventing new public symbols.
+
+
 ## Usage
 
 ### Use case: direct-connect AS5600 over I2C

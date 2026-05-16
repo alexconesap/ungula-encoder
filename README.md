@@ -2,6 +2,8 @@
 
 > **High-performance embedded C++ for ESP32 and friends** — magnetic / optical encoder drivers.
 
+> **LLM usage note:** if this library is consumed from a coding AI workflow, explicitly point the agent to `API.md` first. `API.md` is the LLM-facing contract (public API + examples + constraints) and avoids wasting time/tokens scanning source files and this human-oriented README.
+
 Chip-neutral encoder interface plus drivers. Designed around two real
 deployments that look different on the board but identical in code:
 
@@ -12,20 +14,25 @@ deployments that look different on the board but identical in code:
 
 Both work through the same `IEncoder` API. The multiplexer is **optional**.
 
-## Table of contents
+## Table of Contents
 
 - [Features](#features)
 - [Supported chips](#supported-chips)
 - [Dependencies](#dependencies)
+  - [Include reference](#include-reference)
 - [Architecture](#architecture)
-- [Quick start — direct connect](#quick-start--direct-connect)
-- [Quick start — behind a multiplexer](#quick-start--behind-a-multiplexer)
-- [Quick start — PWM-only (`As5600Pwm`)](#quick-start--pwm-only-as5600pwm)
-- [Quick start — I2C + PWM combined (`As5600I2cPwm`)](#quick-start--i2c--pwm-combined-as5600i2cpwm)
-- [Multiplexer is optional](#multiplexer-is-optional)
+- [Quick start — direct connect](#quick-start-direct-connect)
+- [Quick start — behind a multiplexer](#quick-start-behind-a-multiplexer)
+- [Quick start — PWM-only (`As5600Pwm`)](#quick-start-pwm-only-as5600pwm)
+  - [ISR-driven angle updates — no polling required](#isr-driven-angle-updates-no-polling-required)
+- [Quick start — I2C + PWM combined (`As5600I2cPwm`)](#quick-start-i2c-pwm-combined-as5600i2cpwm)
+- [Multiplexer is optional (per driver)](#multiplexer-is-optional-per-driver)
+- [Changing direction](#changing-direction)
 - [Logging](#logging)
 - [Testing](#testing)
+- [Acknowledgements](#acknowledgements)
 - [License](#license)
+- [Arduino CLI symlink note (rarely relevant)](#arduino-cli-symlink-note-rarely-relevant)
 
 ## Features
 
@@ -45,7 +52,7 @@ Both work through the same `IEncoder` API. The multiplexer is **optional**.
 | AS5600 | I2C + PWM (combined) | 12 bit / 4096 steps | `ungula::encoder::drivers::As5600I2cPwm` |
 | AS5047P | SPI (`SpiMaster`) | 14 bit / 16384 steps | `ungula::encoder::drivers::As5047pSpi` |
 | MA730 | SPI (`SpiMaster`) | 14 bit / 16384 steps | `ungula::encoder::drivers::Ma730Spi` |
-| MT6835 | SPI (`SpiMaster`) | 21 bit / 2'097'152 steps | `ungula::encoder::drivers::Mt6835Spi` |
+| MT6835 | SPI (`SpiMaster`) | 21 bit / 2097152 steps | `ungula::encoder::drivers::Mt6835Spi` |
 | MT6701 | ABI / quadrature (`IDecoder`) | up to 16384 counts (decoder-dependent) | `ungula::encoder::drivers::Mt6701Abi` |
 
 The `IEncoder` interface is transport-agnostic so new drivers (additional ABI chips, RS-485 absolute encoders, optical encoders) slot in without breaking host code.
